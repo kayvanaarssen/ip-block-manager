@@ -1,5 +1,8 @@
 # IP Block Manager
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/kayvanaarssen/ip-block-manager)](https://github.com/kayvanaarssen/ip-block-manager/releases)
+
 A secure, mobile-first web dashboard for managing IP blocking across multiple servers via SSH. Built with Laravel 13, Vue 3, and Inertia.js.
 
 Block and unblock IP addresses on all your servers with a single click. The app connects to each server over SSH, deploys the `blockip.sh` script automatically, and executes block/unblock commands across UFW, Fail2Ban, and NGINX simultaneously.
