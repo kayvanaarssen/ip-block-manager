@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
@@ -7,6 +7,7 @@ import ConfirmModal from '@/Components/ConfirmModal.vue'
 const props = defineProps({ blockedIps: Object, allServers: Array, filters: Object })
 
 const expandedRow = ref(null)
+const openMenu = ref(null)
 
 const statusColors = {
     pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -20,6 +21,19 @@ const statusColors = {
 const toggleExpand = (id) => {
     expandedRow.value = expandedRow.value === id ? null : id
 }
+
+const toggleMenu = (id) => {
+    openMenu.value = openMenu.value === id ? null : id
+}
+
+// Close menu on outside click
+const closeMenus = (e) => {
+    if (!e.target.closest('.action-menu')) {
+        openMenu.value = null
+    }
+}
+onMounted(() => document.addEventListener('click', closeMenus))
+onUnmounted(() => document.removeEventListener('click', closeMenus))
 
 // Confirmation modal state
 const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Confirm', action: null })
@@ -37,6 +51,7 @@ const onCancel = () => {
 
 // Block actions
 const confirmBlockAll = (ip) => {
+    openMenu.value = null
     const serverIds = props.allServers.map(s => s.id)
     showConfirm({
         title: 'Block on all servers',
@@ -59,6 +74,7 @@ const confirmBlockServer = (ip, server) => {
 
 // Unblock actions
 const confirmUnblockAll = (ip) => {
+    openMenu.value = null
     showConfirm({
         title: 'Unblock from all servers',
         message: `This will unblock ${ip.ip_address} from all servers via SSH. The IP will be removed from UFW, Fail2Ban, and NGINX on each server.`,
@@ -79,6 +95,7 @@ const confirmUnblockServer = (ip, server) => {
 }
 
 const confirmDeleteEntry = (ip) => {
+    openMenu.value = null
     showConfirm({
         title: 'Delete entry',
         message: `Remove ${ip.ip_address} from the database. This will NOT unblock it on any servers — it only removes the record from the interface.`,
@@ -86,16 +103,6 @@ const confirmDeleteEntry = (ip) => {
         confirmText: 'Delete',
         action: () => router.delete(route('blocked-ips.force-delete', ip.id)),
     })
-}
-
-// Helpers for determining available actions
-const hasBlockableServers = (ip) => {
-    return ip.servers?.some(s => ['unblocked', 'failed'].includes(s.status)) ||
-        getUnattachedServers(ip).length > 0
-}
-
-const hasUnblockableServers = (ip) => {
-    return ip.servers?.some(s => ['blocked', 'failed'].includes(s.status))
 }
 
 const getUnattachedServers = (ip) => {
@@ -148,7 +155,8 @@ const getUnattachedServers = (ip) => {
                                 <td class="px-5 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell">{{ ip.blocked_by }}</td>
                                 <td class="px-5 py-3 text-gray-400 dark:text-gray-500 text-xs hidden lg:table-cell">{{ ip.created_at }}</td>
                                 <td class="px-5 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-2">
+                                    <!-- Desktop: inline buttons -->
+                                    <div class="hidden md:flex items-center justify-end gap-2">
                                         <Link :href="route('blocked-ips.show', ip.id)" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium">View</Link>
                                         <button v-if="ip.servers?.length" @click="toggleExpand(ip.id)" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
                                             {{ expandedRow === ip.id ? 'Hide' : 'Servers' }}
@@ -156,6 +164,49 @@ const getUnattachedServers = (ip) => {
                                         <button @click="confirmBlockAll(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Block All</button>
                                         <button v-if="ip.servers?.length" @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
                                         <button @click="confirmDeleteEntry(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Delete</button>
+                                    </div>
+
+                                    <!-- Mobile: action menu -->
+                                    <div class="md:hidden relative action-menu">
+                                        <button @click.stop="toggleMenu(ip.id)" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                            </svg>
+                                        </button>
+                                        <Transition
+                                            enter-active-class="transition ease-out duration-100"
+                                            enter-from-class="opacity-0 scale-95"
+                                            enter-to-class="opacity-100 scale-100"
+                                            leave-active-class="transition ease-in duration-75"
+                                            leave-from-class="opacity-100 scale-100"
+                                            leave-to-class="opacity-0 scale-95"
+                                        >
+                                            <div v-if="openMenu === ip.id"
+                                                class="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-20 py-1">
+                                                <Link :href="route('blocked-ips.show', ip.id)"
+                                                    class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    View details
+                                                </Link>
+                                                <button v-if="ip.servers?.length" @click="toggleExpand(ip.id); openMenu = null"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    {{ expandedRow === ip.id ? 'Hide servers' : 'Show servers' }}
+                                                </button>
+                                                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                                                <button @click="confirmBlockAll(ip)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    Block on all servers
+                                                </button>
+                                                <button v-if="ip.servers?.length" @click="confirmUnblockAll(ip)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    Unblock from all servers
+                                                </button>
+                                                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                                                <button @click="confirmDeleteEntry(ip)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    Delete entry
+                                                </button>
+                                            </div>
+                                        </Transition>
                                     </div>
                                 </td>
                             </tr>
