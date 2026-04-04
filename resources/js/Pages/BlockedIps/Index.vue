@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
@@ -7,7 +7,15 @@ import ConfirmModal from '@/Components/ConfirmModal.vue'
 const props = defineProps({ blockedIps: Object, allServers: Array, filters: Object })
 
 const expandedRow = ref(null)
-const openMenu = ref(null)
+
+// Mobile action sheet
+const actionSheet = ref({ show: false, ip: null })
+const openActionSheet = (ip) => {
+    actionSheet.value = { show: true, ip }
+}
+const closeActionSheet = () => {
+    actionSheet.value = { show: false, ip: null }
+}
 
 const statusColors = {
     pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -21,19 +29,6 @@ const statusColors = {
 const toggleExpand = (id) => {
     expandedRow.value = expandedRow.value === id ? null : id
 }
-
-const toggleMenu = (id) => {
-    openMenu.value = openMenu.value === id ? null : id
-}
-
-// Close menu on outside click
-const closeMenus = (e) => {
-    if (!e.target.closest('.action-menu')) {
-        openMenu.value = null
-    }
-}
-onMounted(() => document.addEventListener('click', closeMenus))
-onUnmounted(() => document.removeEventListener('click', closeMenus))
 
 // Confirmation modal state
 const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Confirm', action: null })
@@ -51,7 +46,7 @@ const onCancel = () => {
 
 // Block actions
 const confirmBlockAll = (ip) => {
-    openMenu.value = null
+    closeActionSheet()
     const serverIds = props.allServers.map(s => s.id)
     showConfirm({
         title: 'Block on all servers',
@@ -74,7 +69,7 @@ const confirmBlockServer = (ip, server) => {
 
 // Unblock actions
 const confirmUnblockAll = (ip) => {
-    openMenu.value = null
+    closeActionSheet()
     showConfirm({
         title: 'Unblock from all servers',
         message: `This will unblock ${ip.ip_address} from all servers via SSH. The IP will be removed from UFW, Fail2Ban, and NGINX on each server.`,
@@ -95,7 +90,7 @@ const confirmUnblockServer = (ip, server) => {
 }
 
 const confirmDeleteEntry = (ip) => {
-    openMenu.value = null
+    closeActionSheet()
     showConfirm({
         title: 'Delete entry',
         message: `Remove ${ip.ip_address} from the database. This will NOT unblock it on any servers — it only removes the record from the interface.`,
@@ -103,6 +98,16 @@ const confirmDeleteEntry = (ip) => {
         confirmText: 'Delete',
         action: () => router.delete(route('blocked-ips.force-delete', ip.id)),
     })
+}
+
+const viewFromSheet = (ip) => {
+    closeActionSheet()
+    router.visit(route('blocked-ips.show', ip.id))
+}
+
+const toggleExpandFromSheet = (ip) => {
+    closeActionSheet()
+    toggleExpand(ip.id)
 }
 
 const getUnattachedServers = (ip) => {
@@ -166,48 +171,12 @@ const getUnattachedServers = (ip) => {
                                         <button @click="confirmDeleteEntry(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Delete</button>
                                     </div>
 
-                                    <!-- Mobile: action menu -->
-                                    <div class="md:hidden relative action-menu">
-                                        <button @click.stop="toggleMenu(ip.id)" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
-                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                            </svg>
-                                        </button>
-                                        <Transition
-                                            enter-active-class="transition ease-out duration-100"
-                                            enter-from-class="opacity-0 scale-95"
-                                            enter-to-class="opacity-100 scale-100"
-                                            leave-active-class="transition ease-in duration-75"
-                                            leave-from-class="opacity-100 scale-100"
-                                            leave-to-class="opacity-0 scale-95"
-                                        >
-                                            <div v-if="openMenu === ip.id"
-                                                class="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-20 py-1">
-                                                <Link :href="route('blocked-ips.show', ip.id)"
-                                                    class="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                    View details
-                                                </Link>
-                                                <button v-if="ip.servers?.length" @click="toggleExpand(ip.id); openMenu = null"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                    {{ expandedRow === ip.id ? 'Hide servers' : 'Show servers' }}
-                                                </button>
-                                                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                                                <button @click="confirmBlockAll(ip)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                    Block on all servers
-                                                </button>
-                                                <button v-if="ip.servers?.length" @click="confirmUnblockAll(ip)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                    Unblock from all servers
-                                                </button>
-                                                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                                                <button @click="confirmDeleteEntry(ip)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                    Delete entry
-                                                </button>
-                                            </div>
-                                        </Transition>
-                                    </div>
+                                    <!-- Mobile: three-dot trigger for action sheet -->
+                                    <button @click="openActionSheet(ip)" class="md:hidden p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                        </svg>
+                                    </button>
                                 </td>
                             </tr>
                             <!-- Expanded per-server row -->
@@ -273,6 +242,77 @@ const getUnattachedServers = (ip) => {
             </div>
         </div>
 
+        <!-- Mobile action sheet (teleported to body) -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition ease-out duration-200"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition ease-in duration-150"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div v-if="actionSheet.show" class="fixed inset-0 z-50 md:hidden" @click.self="closeActionSheet">
+                    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeActionSheet" />
+                    <Transition
+                        enter-active-class="transition ease-out duration-200"
+                        enter-from-class="translate-y-full"
+                        enter-to-class="translate-y-0"
+                        leave-active-class="transition ease-in duration-150"
+                        leave-from-class="translate-y-0"
+                        leave-to-class="translate-y-full"
+                        appear
+                    >
+                        <div v-if="actionSheet.show" class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl safe-bottom">
+                            <div class="flex justify-center pt-3 pb-1">
+                                <div class="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                            </div>
+                            <div class="px-5 pb-2">
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white font-mono">{{ actionSheet.ip?.ip_address }}</p>
+                            </div>
+                            <div class="border-t border-gray-100 dark:border-gray-700">
+                                <button @click="viewFromSheet(actionSheet.ip)"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3">
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    View details
+                                </button>
+                                <button v-if="actionSheet.ip?.servers?.length" @click="toggleExpandFromSheet(actionSheet.ip)"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                    {{ expandedRow === actionSheet.ip?.id ? 'Hide servers' : 'Show servers' }}
+                                </button>
+                            </div>
+                            <div class="border-t border-gray-100 dark:border-gray-700">
+                                <button @click="confirmBlockAll(actionSheet.ip)"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3 font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                    Block on all servers
+                                </button>
+                                <button v-if="actionSheet.ip?.servers?.length" @click="confirmUnblockAll(actionSheet.ip)"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3 font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Unblock from all servers
+                                </button>
+                            </div>
+                            <div class="border-t border-gray-100 dark:border-gray-700">
+                                <button @click="confirmDeleteEntry(actionSheet.ip)"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3 font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    Delete entry
+                                </button>
+                            </div>
+                            <div class="border-t border-gray-100 dark:border-gray-700 p-3">
+                                <button @click="closeActionSheet"
+                                    class="w-full py-3 text-sm font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </Transition>
+                </div>
+            </Transition>
+        </Teleport>
+
         <ConfirmModal
             :show="confirmModal.show"
             :title="confirmModal.title"
@@ -284,3 +324,9 @@ const getUnattachedServers = (ip) => {
         />
     </AppLayout>
 </template>
+
+<style scoped>
+.safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0.75rem);
+}
+</style>

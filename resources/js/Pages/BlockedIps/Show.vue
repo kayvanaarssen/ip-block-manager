@@ -8,7 +8,7 @@ const props = defineProps({ blockedIp: Object, allServers: Array })
 
 const servers = ref(props.blockedIp.servers)
 let pollInterval = null
-const showActionMenu = ref(false)
+const showActionSheet = ref(false)
 
 const isPolling = computed(() => servers.value.some(s => ['pending', 'blocking', 'unblocking'].includes(s.status)))
 
@@ -24,18 +24,8 @@ onMounted(() => {
     pollInterval = setInterval(() => {
         if (isPolling.value) pollStatus()
     }, 2000)
-    document.addEventListener('click', closeMenu)
 })
-onUnmounted(() => {
-    clearInterval(pollInterval)
-    document.removeEventListener('click', closeMenu)
-})
-
-const closeMenu = (e) => {
-    if (!e.target.closest('.action-menu')) {
-        showActionMenu.value = false
-    }
-}
+onUnmounted(() => clearInterval(pollInterval))
 
 const statusConfig = {
     pending: { color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', label: 'Pending' },
@@ -72,7 +62,7 @@ const blockServer = (server) => {
 }
 
 const blockAll = () => {
-    showActionMenu.value = false
+    showActionSheet.value = false
     const serverIds = props.allServers.map(s => s.id)
     showConfirm({
         title: 'Block on all servers',
@@ -95,7 +85,7 @@ const unblockServer = (server) => {
 }
 
 const unblockAll = () => {
-    showActionMenu.value = false
+    showActionSheet.value = false
     showConfirm({
         title: 'Unblock from all servers',
         message: `This will unblock ${props.blockedIp.ip_address} from all servers via SSH.`,
@@ -142,35 +132,12 @@ const unattachedServers = computed(() => {
                         </button>
                     </div>
 
-                    <!-- Mobile: action menu -->
-                    <div class="sm:hidden relative action-menu shrink-0">
-                        <button @click.stop="showActionMenu = !showActionMenu"
-                            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
-                        </button>
-                        <Transition
-                            enter-active-class="transition ease-out duration-100"
-                            enter-from-class="opacity-0 scale-95"
-                            enter-to-class="opacity-100 scale-100"
-                            leave-active-class="transition ease-in duration-75"
-                            leave-from-class="opacity-100 scale-100"
-                            leave-to-class="opacity-0 scale-95"
-                        >
-                            <div v-if="showActionMenu"
-                                class="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-20 py-1">
-                                <button @click="blockAll"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium">
-                                    Block on all servers
-                                </button>
-                                <button v-if="servers.length" @click="unblockAll"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium">
-                                    Unblock from all servers
-                                </button>
-                            </div>
-                        </Transition>
-                    </div>
+                    <!-- Mobile: three-dot trigger for action sheet -->
+                    <button @click="showActionSheet = true" class="sm:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 shrink-0">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                    </button>
                 </div>
 
                 <div class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -223,6 +190,58 @@ const unattachedServers = computed(() => {
             </div>
         </div>
 
+        <!-- Mobile action sheet (teleported to body) -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition ease-out duration-200"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition ease-in duration-150"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div v-if="showActionSheet" class="fixed inset-0 z-50 sm:hidden" @click.self="showActionSheet = false">
+                    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showActionSheet = false" />
+                    <Transition
+                        enter-active-class="transition ease-out duration-200"
+                        enter-from-class="translate-y-full"
+                        enter-to-class="translate-y-0"
+                        leave-active-class="transition ease-in duration-150"
+                        leave-from-class="translate-y-0"
+                        leave-to-class="translate-y-full"
+                        appear
+                    >
+                        <div v-if="showActionSheet" class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl safe-bottom">
+                            <div class="flex justify-center pt-3 pb-1">
+                                <div class="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                            </div>
+                            <div class="px-5 pb-2">
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white font-mono">{{ blockedIp.ip_address }}</p>
+                            </div>
+                            <div class="border-t border-gray-100 dark:border-gray-700">
+                                <button @click="blockAll"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3 font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                    Block on all servers
+                                </button>
+                                <button v-if="servers.length" @click="unblockAll"
+                                    class="w-full text-left px-5 py-3.5 text-sm text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3 font-medium">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Unblock from all servers
+                                </button>
+                            </div>
+                            <div class="border-t border-gray-100 dark:border-gray-700 p-3">
+                                <button @click="showActionSheet = false"
+                                    class="w-full py-3 text-sm font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </Transition>
+                </div>
+            </Transition>
+        </Teleport>
+
         <ConfirmModal
             :show="confirmModal.show"
             :title="confirmModal.title"
@@ -234,3 +253,9 @@ const unattachedServers = computed(() => {
         />
     </AppLayout>
 </template>
+
+<style scoped>
+.safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0.75rem);
+}
+</style>
