@@ -8,6 +8,7 @@ use App\Models\BlockedIp;
 use App\Models\Server;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class IpBlockService
 {
@@ -24,7 +25,7 @@ class IpBlockService
         ]);
 
         foreach ($servers as $server) {
-            $blockedIp->servers()->attach($server->id, ['status' => 'pending']);
+            $blockedIp->servers()->attach($server->id, ['id' => Str::ulid()->toBase32(), 'status' => 'pending']);
             ExecuteSshBlockJob::dispatch($blockedIp, $server);
         }
 
