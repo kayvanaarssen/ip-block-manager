@@ -126,11 +126,11 @@ const unattachedServers = computed(() => {
                         <p v-if="blockedIp.reason" class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ blockedIp.reason }}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button v-if="hasBlockableServers" @click="blockAll"
+                        <button @click="blockAll"
                             class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
                             Block All
                         </button>
-                        <button v-if="hasUnblockableServers" @click="unblockAll"
+                        <button v-if="servers.length" @click="unblockAll"
                             class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
                             Unblock All
                         </button>

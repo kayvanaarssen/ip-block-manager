@@ -153,8 +153,8 @@ const getUnattachedServers = (ip) => {
                                         <button v-if="ip.servers?.length" @click="toggleExpand(ip.id)" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
                                             {{ expandedRow === ip.id ? 'Hide' : 'Servers' }}
                                         </button>
-                                        <button v-if="hasBlockableServers(ip)" @click="confirmBlockAll(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Block All</button>
-                                        <button v-if="hasUnblockableServers(ip)" @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
+                                        <button @click="confirmBlockAll(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Block All</button>
+                                        <button v-if="ip.servers?.length" @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
                                         <button @click="confirmDeleteEntry(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Delete</button>
                                     </div>
                                 </td>
