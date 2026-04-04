@@ -10,9 +10,22 @@ use RuntimeException;
 
 class SshService
 {
-    private const SCRIPT_PATH = '/root/ip_blocks/blockip.sh';
+    private const SCRIPT_DIR = 'ip_blocks';
+    private const SCRIPT_NAME = 'blockip.sh';
     private const CONNECT_TIMEOUT = 10;
     private const EXEC_TIMEOUT = 30;
+
+    private function getScriptPath(Server $server): string
+    {
+        $home = $server->ssh_user === 'root' ? '/root' : '/home/' . $server->ssh_user;
+        return $home . '/' . self::SCRIPT_DIR . '/' . self::SCRIPT_NAME;
+    }
+
+    private function getScriptDir(Server $server): string
+    {
+        $home = $server->ssh_user === 'root' ? '/root' : '/home/' . $server->ssh_user;
+        return $home . '/' . self::SCRIPT_DIR;
+    }
 
     public function connect(Server $server): SSH2
     {
@@ -48,29 +61,34 @@ class SshService
     public function blockIp(Server $server, string $ip): array
     {
         $safeIp = escapeshellarg($ip);
-        return $this->execute($server, self::SCRIPT_PATH . " --block {$safeIp}");
+        $scriptPath = $this->getScriptPath($server);
+        return $this->execute($server, "sudo {$scriptPath} --block {$safeIp}");
     }
 
     public function unblockIp(Server $server, string $ip): array
     {
         $safeIp = escapeshellarg($ip);
-        return $this->execute($server, self::SCRIPT_PATH . " --unblock {$safeIp}");
+        $scriptPath = $this->getScriptPath($server);
+        return $this->execute($server, "sudo {$scriptPath} --unblock {$safeIp}");
     }
 
     public function listBlockedIps(Server $server): array
     {
-        return $this->execute($server, self::SCRIPT_PATH . ' --list');
+        $scriptPath = $this->getScriptPath($server);
+        return $this->execute($server, "sudo {$scriptPath} --list");
     }
 
     public function checkStatus(Server $server, string $ip): array
     {
         $safeIp = escapeshellarg($ip);
-        return $this->execute($server, self::SCRIPT_PATH . " --status {$safeIp}");
+        $scriptPath = $this->getScriptPath($server);
+        return $this->execute($server, "sudo {$scriptPath} --status {$safeIp}");
     }
 
     public function isScriptInstalled(Server $server): bool
     {
-        $result = $this->execute($server, 'test -f ' . self::SCRIPT_PATH . ' && echo "EXISTS" || echo "MISSING"');
+        $scriptPath = $this->getScriptPath($server);
+        $result = $this->execute($server, 'test -f ' . $scriptPath . ' && echo "EXISTS" || echo "MISSING"');
         return str_contains($result['output'], 'EXISTS');
     }
 
@@ -89,20 +107,23 @@ class SshService
             throw new RuntimeException("SFTP authentication failed for {$server->host}");
         }
 
+        $scriptDir = $this->getScriptDir($server);
+        $scriptPath = $this->getScriptPath($server);
+
         // Create directory
-        $sftp->mkdir('/root/ip_blocks', 0700, true);
+        $sftp->mkdir($scriptDir, 0755, true);
 
         // Upload script
         $scriptContent = file_get_contents($localScript);
-        if (!$sftp->put(self::SCRIPT_PATH, $scriptContent)) {
+        if (!$sftp->put($scriptPath, $scriptContent)) {
             throw new RuntimeException("Failed to upload blockip.sh to {$server->host}");
         }
 
-        $sftp->chmod(0755, self::SCRIPT_PATH);
+        $sftp->chmod(0755, $scriptPath);
         $sftp->disconnect();
 
         // Verify
-        $result = $this->execute($server, self::SCRIPT_PATH . ' --help');
+        $result = $this->execute($server, $scriptPath . ' --help');
 
         $server->update([
             'script_installed' => $result['success'],

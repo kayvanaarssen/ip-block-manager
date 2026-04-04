@@ -41,7 +41,7 @@ class ServerController extends Controller
     {
         $server = Server::create($request->validated());
         $audit->log('create_server', $server, ['name' => $server->name, 'host' => $server->host]);
-        return redirect()->route('servers.index')->with('success', "Server '{$server->name}' added.");
+        return redirect()->route('servers.edit', $server)->with('success', "Server '{$server->name}' added. Test the connection and check the script status below.");
     }
 
     public function show(Server $server)
@@ -93,6 +93,24 @@ class ServerController extends Controller
             $result['success'] ? 'success' : 'error',
             $result['success'] ? "Connected to {$server->name}: {$result['output']}" : "Connection failed: {$result['output']}"
         );
+    }
+
+    public function checkScript(Server $server, SshService $sshService)
+    {
+        try {
+            $installed = $sshService->isScriptInstalled($server);
+            $server->update([
+                'script_installed' => $installed,
+                'last_connected_at' => now(),
+            ]);
+
+            return back()->with(
+                $installed ? 'success' : 'error',
+                $installed ? "Script is installed on {$server->name}." : "Script is NOT installed on {$server->name}. Use 'Install Script' to deploy it."
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', "Could not check script: {$e->getMessage()}");
+        }
     }
 
     public function installScript(Server $server, AuditService $audit)

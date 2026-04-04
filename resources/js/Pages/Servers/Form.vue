@@ -20,6 +20,9 @@ const authorizedKeysCmd = ref('')
 const generatingKey = ref(false)
 const copied = ref('')
 const keyGenerated = ref(false)
+const testing = ref(false)
+const checking = ref(false)
+const installing = ref(false)
 
 const submit = () => {
     if (isEdit) {
@@ -35,7 +38,6 @@ const handleFileUpload = (e) => {
         const reader = new FileReader()
         reader.onload = (ev) => {
             form.ssh_private_key = ev.target.result
-            // Clear generated key display if uploading manually
             publicKey.value = ''
             authorizedKeysCmd.value = ''
             keyGenerated.value = false
@@ -46,10 +48,8 @@ const handleFileUpload = (e) => {
 
 const generateKey = async () => {
     generatingKey.value = true
-
     try {
         if (isEdit) {
-            // For existing servers, generate + save on server side
             const res = await fetch(route('servers.generate-key', props.server.id), {
                 method: 'POST',
                 headers: {
@@ -62,7 +62,6 @@ const generateKey = async () => {
             authorizedKeysCmd.value = data.command || ''
             keyGenerated.value = true
         } else {
-            // For new servers, generate a preview key pair and put private key in form
             const res = await fetch(route('servers.generate-key-preview'), {
                 method: 'POST',
                 headers: {
@@ -94,13 +93,36 @@ const fetchPublicKey = async () => {
     } catch {}
 }
 
+const testConnection = () => {
+    testing.value = true
+    router.post(route('servers.test', props.server.id), {}, {
+        preserveScroll: true,
+        onFinish: () => testing.value = false,
+    })
+}
+
+const checkScript = () => {
+    checking.value = true
+    router.post(route('servers.check-script', props.server.id), {}, {
+        preserveScroll: true,
+        onFinish: () => checking.value = false,
+    })
+}
+
+const installScript = () => {
+    installing.value = true
+    router.post(route('servers.install-script', props.server.id), {}, {
+        preserveScroll: true,
+        onFinish: () => installing.value = false,
+    })
+}
+
 const copyToClipboard = async (text, label) => {
     await navigator.clipboard.writeText(text)
     copied.value = label
     setTimeout(() => copied.value = '', 2000)
 }
 
-// Fetch public key on load if editing and server has one
 if (isEdit && props.server?.has_public_key) {
     fetchPublicKey()
 }
@@ -115,6 +137,63 @@ if (isEdit && props.server?.has_public_key) {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                 </Link>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ isEdit ? 'Edit Server' : 'Add Server' }}</h1>
+            </div>
+
+            <!-- Server status & actions (edit mode) -->
+            <div v-if="isEdit" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Server Status</h3>
+                    <span v-if="server.last_connected_at" class="text-xs text-gray-400">Last connected {{ server.last_connected_at }}</span>
+                </div>
+
+                <!-- Status indicators -->
+                <div class="grid grid-cols-2 gap-3 mb-5">
+                    <!-- Connection status -->
+                    <div class="flex items-center gap-3 p-3 rounded-xl" :class="server.has_key ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="server.has_key ? 'bg-green-100 dark:bg-green-900/40' : 'bg-yellow-100 dark:bg-yellow-900/40'">
+                            <svg class="w-5 h-5" :class="server.has_key ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-sm font-semibold" :class="server.has_key ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'">SSH Key</div>
+                            <div class="text-xs" :class="server.has_key ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500'">{{ server.has_key ? 'Configured' : 'Not set' }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Script status -->
+                    <div class="flex items-center gap-3 p-3 rounded-xl" :class="server.script_installed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="server.script_installed ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-900/40'">
+                            <svg class="w-5 h-5" :class="server.script_installed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-sm font-semibold" :class="server.script_installed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'">blockip.sh</div>
+                            <div class="text-xs" :class="server.script_installed ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'">{{ server.script_installed ? 'Installed' : 'Not installed' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <button @click="testConnection" :disabled="testing"
+                        class="flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
+                        <svg v-if="!testing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        {{ testing ? 'Testing...' : 'Test Connection' }}
+                    </button>
+
+                    <button @click="checkScript" :disabled="checking"
+                        class="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
+                        <svg v-if="!checking" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        {{ checking ? 'Checking...' : 'Check Script' }}
+                    </button>
+
+                    <button v-if="!server.script_installed" @click="installScript" :disabled="installing"
+                        class="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
+                        <svg v-if="!installing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        {{ installing ? 'Installing...' : 'Install Script' }}
+                    </button>
+                </div>
             </div>
 
             <form @submit.prevent="submit" class="space-y-6">
@@ -178,7 +257,6 @@ if (isEdit && props.server?.has_public_key) {
                             <span class="text-sm font-semibold">Key pair generated successfully</span>
                         </div>
 
-                        <!-- Public key -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Public Key</label>
@@ -192,7 +270,6 @@ if (isEdit && props.server?.has_public_key) {
                                 class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 text-xs font-mono resize-none"></textarea>
                         </div>
 
-                        <!-- One-liner command -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Add to server (one-liner)</label>
@@ -242,20 +319,13 @@ if (isEdit && props.server?.has_public_key) {
                     </div>
                 </div>
 
-                <!-- Actions -->
+                <!-- Save / Cancel -->
                 <div class="flex items-center gap-3">
                     <button type="submit" :disabled="form.processing"
                         class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 text-sm shadow-sm">
                         {{ form.processing ? 'Saving...' : (isEdit ? 'Update Server' : 'Add Server') }}
                     </button>
                     <Link :href="route('servers.index')" class="px-4 py-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm font-medium">Cancel</Link>
-
-                    <template v-if="isEdit">
-                        <button type="button" @click="router.post(route('servers.test', server.id))"
-                            class="ml-auto px-4 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                            Test Connection
-                        </button>
-                    </template>
                 </div>
             </form>
         </div>

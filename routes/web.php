@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('servers', ServerController::class);
     Route::post('/servers/generate-key-preview', [ServerController::class, 'generateKeyPreview'])->name('servers.generate-key-preview');
     Route::post('/servers/{server}/test', [ServerController::class, 'testConnection'])->name('servers.test');
+    Route::post('/servers/{server}/check-script', [ServerController::class, 'checkScript'])->name('servers.check-script');
     Route::post('/servers/{server}/install-script', [ServerController::class, 'installScript'])->name('servers.install-script');
     Route::post('/servers/{server}/sync', [ServerController::class, 'sync'])->name('servers.sync');
     Route::post('/servers/{server}/generate-key', [ServerController::class, 'generateKey'])->name('servers.generate-key');
