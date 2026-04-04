@@ -333,6 +333,132 @@ This creates the default admin account. Log in and register a passkey.
 
 ---
 
+## Integrations
+
+<details>
+<summary><strong>Telegram Bot</strong> — Block and unblock IPs via Telegram chat commands</summary>
+
+### Overview
+
+Connect a Telegram bot to your IP Block Manager so you can block/unblock IPs on the go without opening the web dashboard. Each Telegram account is linked to an app user, so all actions are authenticated and audit-logged.
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `/block <ip> [reason]` | Block an IP on all active servers |
+| `/unblock <ip>` | Unblock an IP from all servers |
+| `/status <ip>` | Check per-server block status |
+| `/servers` | List all active servers |
+| `/link <token>` | Link your Telegram account |
+| `/help` | Show available commands |
+
+### Setup
+
+#### 1. Create a Telegram Bot
+
+1. Open Telegram and message [@BotFather](https://t.me/BotFather)
+2. Send `/newbot` and follow the prompts to choose a name and username
+3. BotFather will reply with your **bot token** (e.g. `7123456789:AAH1bGci...`)
+4. Copy the token — you'll need it in the next step
+
+#### 2. Configure Environment
+
+Add the bot token to your `.env` file on the server:
+
+```env
+TELEGRAM_TOKEN=7123456789:AAH1bGciOiJSUzI1NiIsInR...
+```
+
+Then clear the config cache:
+
+```bash
+php artisan config:cache
+```
+
+#### 3. Run Migration
+
+The Telegram integration adds a `telegram_user_id` column to the users table:
+
+```bash
+php artisan migrate
+```
+
+#### 4. Set the Webhook
+
+Tell Telegram where to send messages:
+
+```bash
+php artisan nutgram:hook:set https://your-domain.com/api/telegram/webhook
+```
+
+You should see: `Bot webhook set with url: https://your-domain.com/api/telegram/webhook`
+
+To verify the webhook is active:
+
+```bash
+php artisan nutgram:hook:info
+```
+
+#### 5. Link Your Account
+
+Each user needs to link their Telegram account once:
+
+1. Log into the **web dashboard**
+2. Go to **Profile**
+3. Scroll to the **Telegram Bot** section
+4. Click **Generate Token** — a one-time token is shown (expires in 5 minutes)
+5. Open your bot chat in Telegram
+6. Send `/link <token>` (you can click the copy button to copy the full command)
+7. The bot confirms: "Account linked successfully!"
+
+You can unlink your Telegram account at any time from the Profile page.
+
+### Usage Examples
+
+**Block an IP with a reason:**
+```
+/block 1.2.3.4 WordPress brute force
+```
+
+**Block an IP without a reason:**
+```
+/block 10.0.0.50
+```
+
+**Check the status after blocking:**
+```
+/status 1.2.3.4
+```
+> The bot replies with per-server status icons:
+> - ⛔ blocked
+> - ⏳ pending/in progress
+> - ❌ failed
+> - ✅ unblocked
+
+**Unblock an IP:**
+```
+/unblock 1.2.3.4
+```
+
+**List your servers:**
+```
+/servers
+```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `Unauthorized` error when setting webhook | Your `TELEGRAM_TOKEN` is invalid. Get a new one from @BotFather |
+| Bot doesn't respond | Check webhook is set: `php artisan nutgram:hook:info`. Make sure your domain has a valid SSL certificate |
+| "You are not authorized" reply | Link your account first via Profile > Telegram Bot > Generate Token |
+| Commands work but IPs stay "pending" | Your queue worker isn't running. Set up a daemon: `php artisan queue:work` |
+
+</details>
+
+---
+
 ## The blockip.sh Script
 
 The script deployed to each server handles multi-layer blocking:
