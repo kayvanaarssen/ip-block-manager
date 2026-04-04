@@ -12,10 +12,36 @@ class BlockedIpController extends Controller
 {
     public function index()
     {
+        $query = BlockedIp::with(['blockedByUser', 'servers']);
+
+        // Filter by IP address search
+        if ($search = request('search')) {
+            $query->where('ip_address', 'like', "%{$search}%");
+        }
+
+        // Filter by server
+        if ($serverId = request('server')) {
+            $query->whereHas('servers', fn ($q) => $q->where('servers.id', $serverId));
+        }
+
+        // Filter by status
+        if ($status = request('status')) {
+            if ($status === 'blocked') {
+                $query->whereHas('servers', fn ($q) => $q->wherePivot('status', 'blocked'));
+            } elseif ($status === 'unblocked') {
+                $query->whereHas('servers', fn ($q) => $q->wherePivot('status', 'unblocked'));
+            } elseif ($status === 'failed') {
+                $query->whereHas('servers', fn ($q) => $q->wherePivot('status', 'failed'));
+            } elseif ($status === 'pending') {
+                $query->whereHas('servers', fn ($q) => $q->wherePivotIn('status', ['pending', 'blocking', 'unblocking']));
+            }
+        }
+
         return Inertia::render('BlockedIps/Index', [
-            'blockedIps' => BlockedIp::with(['blockedByUser', 'servers'])
+            'blockedIps' => $query
                 ->latest()
                 ->paginate(25)
+                ->withQueryString()
                 ->through(fn ($ip) => [
                     'id' => $ip->id,
                     'ip_address' => $ip->ip_address,
@@ -30,7 +56,7 @@ class BlockedIpController extends Controller
                     ]),
                 ]),
             'allServers' => Server::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'filters' => request()->only(['search']),
+            'filters' => request()->only(['search', 'server', 'status']),
         ]);
     }
 

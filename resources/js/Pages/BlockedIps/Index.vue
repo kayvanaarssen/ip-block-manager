@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
@@ -7,6 +7,42 @@ import ConfirmModal from '@/Components/ConfirmModal.vue'
 const props = defineProps({ blockedIps: Object, allServers: Array, filters: Object })
 
 const expandedRow = ref(null)
+
+// Filters
+const search = ref(props.filters?.search || '')
+const serverFilter = ref(props.filters?.server || '')
+const statusFilter = ref(props.filters?.status || '')
+let searchTimeout = null
+
+const applyFilters = () => {
+    const params = {}
+    if (search.value) params.search = search.value
+    if (serverFilter.value) params.server = serverFilter.value
+    if (statusFilter.value) params.status = statusFilter.value
+    router.get(route('blocked-ips.index'), params, { preserveState: true, replace: true })
+}
+
+const onSearchInput = () => {
+    clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(applyFilters, 300)
+}
+
+watch(serverFilter, applyFilters)
+watch(statusFilter, applyFilters)
+
+const clearFilters = () => {
+    search.value = ''
+    serverFilter.value = ''
+    statusFilter.value = ''
+    router.get(route('blocked-ips.index'), {}, { preserveState: true, replace: true })
+}
+
+const hasFilters = () => search.value || serverFilter.value || statusFilter.value
+
+const selectedServerName = () => {
+    if (!serverFilter.value) return null
+    return props.allServers.find(s => s.id === serverFilter.value)?.name
+}
 
 // Mobile action sheet
 const actionSheet = ref({ show: false, ip: null })
@@ -124,6 +160,39 @@ const getUnattachedServers = (ip) => {
             <Link :href="route('blocked-ips.create')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
                 Block IP
             </Link>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+            <div class="relative flex-1 min-w-[140px] max-w-xs">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input v-model="search" @input="onSearchInput" type="text" placeholder="Search IP..."
+                    class="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+            </div>
+            <select v-model="serverFilter"
+                class="text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">All servers</option>
+                <option v-for="s in allServers" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+            <select v-model="statusFilter"
+                class="text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">All statuses</option>
+                <option value="blocked">Blocked</option>
+                <option value="unblocked">Unblocked</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+            </select>
+            <button v-if="hasFilters()" @click="clearFilters" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium whitespace-nowrap">
+                Clear filters
+            </button>
+        </div>
+
+        <!-- Active filter badge -->
+        <div v-if="selectedServerName()" class="mb-3 flex items-center gap-2">
+            <span class="text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
+                Server: {{ selectedServerName() }}
+                <button @click="serverFilter = ''" class="hover:text-primary-900 dark:hover:text-primary-200">&times;</button>
+            </span>
         </div>
 
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">

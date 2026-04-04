@@ -208,7 +208,10 @@ const bulkDelete = () => {
                                 </div>
                             </td>
                             <td class="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
-                                <span v-if="server.blocked_ips_count" class="text-xs font-medium text-red-600 dark:text-red-400">{{ server.blocked_ips_count }}</span>
+                                <Link v-if="server.blocked_ips_count" :href="route('blocked-ips.index', { server: server.id })"
+                                    class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">
+                                    {{ server.blocked_ips_count }}
+                                </Link>
                                 <span v-else class="text-xs text-gray-400">0</span>
                             </td>
                             <td class="px-2 sm:px-4 py-2 sm:py-3 hidden lg:table-cell">
