@@ -172,8 +172,14 @@ class SshService
         // Upload latest script
         $this->installScript($server);
 
-        // Run migration to switch from deny 403 to geo 444
+        // Run migration to clean up old config and install correct nginx blocking
         $result = $this->migrateNginx($server);
+
+        // If migration had issues, also grab the nginx -t output for debugging
+        if (!$result['success']) {
+            $nginxTest = $this->execute($server, 'sudo nginx -t 2>&1');
+            $result['output'] .= "\n\nnginx -t output:\n" . $nginxTest['output'];
+        }
 
         $server->update([
             'script_version' => self::CURRENT_SCRIPT_VERSION,

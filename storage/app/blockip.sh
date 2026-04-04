@@ -170,8 +170,11 @@ install_nginx_blocking() {
     ' "$b" > "${NGINX_CONF}.tmp"
     mv "${NGINX_CONF}.tmp" "$NGINX_CONF"
 
-    if ! nginx -t 2>/dev/null; then
+    local nginx_test
+    nginx_test=$(nginx -t 2>&1) || true
+    if echo "$nginx_test" | grep -q "test failed"; then
         echo -e "${RED}  [NGINX] config test failed — restoring backup${NC}"
+        echo "  [NGINX] Error: $nginx_test"
         cp -a "$b" "$NGINX_CONF"
         return 1
     fi
