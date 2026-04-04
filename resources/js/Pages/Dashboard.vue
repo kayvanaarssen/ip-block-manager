@@ -19,6 +19,8 @@ const actionLabels = {
     update_profile: 'Updated profile',
     change_password: 'Changed password',
     generate_ssh_key: 'Generated SSH key',
+    reblock_ip: 'Re-blocked IP',
+    unlink_telegram: 'Unlinked Telegram',
 }
 </script>
 

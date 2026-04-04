@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Services\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -19,6 +21,8 @@ class ProfileController extends Controller
                 'name' => $request->user()->name,
                 'email' => $request->user()->email,
                 'theme_preference' => $request->user()->theme_preference,
+                'telegram_linked' => (bool) $request->user()->telegram_user_id,
+                'telegram_user_id' => $request->user()->telegram_user_id,
             ],
         ]);
     }
@@ -67,5 +71,22 @@ class ProfileController extends Controller
         $request->user()->update($data);
 
         return back()->with('success', 'Theme preference saved.');
+    }
+
+    public function generateTelegramToken(Request $request)
+    {
+        $token = Str::random(32);
+
+        Cache::put("telegram_link:{$token}", $request->user()->id, now()->addMinutes(5));
+
+        return back()->with('telegram_token', $token);
+    }
+
+    public function unlinkTelegram(Request $request, AuditService $audit)
+    {
+        $request->user()->update(['telegram_user_id' => null]);
+        $audit->log('unlink_telegram', $request->user());
+
+        return back()->with('success', 'Telegram account unlinked.');
     }
 }

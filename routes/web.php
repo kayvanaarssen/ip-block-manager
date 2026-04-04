@@ -62,6 +62,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::put('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
+    Route::post('/profile/telegram-token', [ProfileController::class, 'generateTelegramToken'])->name('profile.telegram-token');
+    Route::delete('/profile/telegram', [ProfileController::class, 'unlinkTelegram'])->name('profile.unlink-telegram');
 
     // Users management
     Route::resource('users', UserController::class)->except(['show']);
