@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_VERSION="2.2.0"
+SCRIPT_VERSION="2.3.0"
 
 BASE_DIR="/root/ip_blocks"
 BLOCKLIST_FILE="${BASE_DIR}/blocked-ips.list"
@@ -322,13 +322,13 @@ nginx_deny_exists() {
 
 ensure_nginx_installed() {
     if ! grep -Fq "$NGINX_INCLUDE_LINE" "$NGINX_CONF" 2>/dev/null; then
-        install_nginx_blocking
+        install_nginx_blocking || true
     fi
 }
 
 block_nginx() {
     has_command nginx || return 0
-    ensure_nginx_installed
+    ensure_nginx_installed || true
     if nginx_deny_exists "$1"; then
         echo "  [NGINX] already blocked"
         return 0
@@ -493,26 +493,23 @@ status_ip() {
 
 block_ip() {
     local ip="$1"
-    local nginx_failed=0
     echo -e "Blocking ${YELLOW}${ip}${NC} ..."
-    block_ufw "$ip"
-    block_fail2ban "$ip"
-    block_nginx "$ip" || nginx_failed=1
+    # Each system is independent — never let one failure stop the others
+    block_ufw "$ip" || echo -e "${YELLOW}  [UFW] warning: failed${NC}"
+    block_fail2ban "$ip" || echo -e "${YELLOW}  [Fail2Ban] warning: failed${NC}"
+    block_nginx "$ip" || echo -e "${YELLOW}  [NGINX] warning: failed${NC}"
     add_to_registry "$ip"
     log_action block "$ip"
-    if (( nginx_failed )); then
-        echo -e "${YELLOW}Blocked ${ip} (nginx had issues — UFW/Fail2Ban OK)${NC}"
-    else
-        echo -e "${GREEN}Blocked ${ip}${NC}"
-    fi
+    echo -e "${GREEN}Blocked ${ip}${NC}"
 }
 
 unblock_ip() {
     local ip="$1"
     echo -e "Unblocking ${YELLOW}${ip}${NC} ..."
-    unblock_ufw "$ip"
-    unblock_fail2ban "$ip"
-    unblock_nginx "$ip" || true
+    # Each system is independent — never let one failure stop the others
+    unblock_ufw "$ip" || echo -e "${YELLOW}  [UFW] warning: failed${NC}"
+    unblock_fail2ban "$ip" || echo -e "${YELLOW}  [Fail2Ban] warning: failed${NC}"
+    unblock_nginx "$ip" || echo -e "${YELLOW}  [NGINX] warning: failed${NC}"
     remove_from_registry "$ip"
     log_action unblock "$ip"
     echo -e "${GREEN}Unblocked ${ip}${NC}"

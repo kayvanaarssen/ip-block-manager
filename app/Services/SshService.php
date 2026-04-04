@@ -14,7 +14,7 @@ class SshService
     private const SCRIPT_NAME = 'blockip.sh';
     private const CONNECT_TIMEOUT = 10;
     private const EXEC_TIMEOUT = 30;
-    public const CURRENT_SCRIPT_VERSION = '2.2.0';
+    public const CURRENT_SCRIPT_VERSION = '2.3.0';
 
     private function getScriptPath(Server $server): string
     {

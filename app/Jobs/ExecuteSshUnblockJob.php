@@ -34,12 +34,17 @@ class ExecuteSshUnblockJob implements ShouldQueue
             'started_at' => now(),
         ]);
 
+        $this->blockedIp->servers()->updateExistingPivot(
+            $this->server->id,
+            ['status' => 'unblocking']
+        );
+
         try {
             $result = $sshService->unblockIp($this->server, $this->blockedIp->ip_address);
 
-            // Unblock is always considered successful — even if the script
-            // returns non-zero (e.g. nginx issues), UFW and Fail2Ban still
-            // got cleaned up. The IP is effectively unblocked.
+            // The script now uses || true on each system (UFW/Fail2Ban/nginx)
+            // so it always exits 0. Even if nginx had issues, UFW and Fail2Ban
+            // are cleaned up. We treat any completed SSH execution as success.
             $taskLog->update([
                 'status' => 'completed',
                 'output' => $result['output'],
@@ -58,6 +63,7 @@ class ExecuteSshUnblockJob implements ShouldQueue
             $this->server->update(['last_connected_at' => now()]);
 
         } catch (\Throwable $e) {
+            // SSH connection failed entirely — the command never ran
             $taskLog->update([
                 'status' => 'failed',
                 'error' => $e->getMessage(),

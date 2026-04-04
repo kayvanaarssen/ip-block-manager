@@ -135,7 +135,7 @@ const confirmDeleteEntry = (ip) => {
                                                     {{ server.error_message }}
                                                 </span>
                                             </div>
-                                            <button v-if="server.status === 'blocked'" @click="confirmUnblockServer(ip, server)"
+                                            <button v-if="['blocked', 'failed'].includes(server.status)" @click="confirmUnblockServer(ip, server)"
                                                 class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium whitespace-nowrap">
                                                 Unblock
                                             </button>

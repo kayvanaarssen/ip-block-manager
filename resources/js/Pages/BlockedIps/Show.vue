@@ -105,7 +105,7 @@ const unblockAll = () => {
                             <span :class="statusConfig[server.status]?.color" class="text-xs font-medium px-3 py-1 rounded-full">
                                 {{ statusConfig[server.status]?.label || server.status }}
                             </span>
-                            <button v-if="server.status === 'blocked'" @click="unblockServer(server)"
+                            <button v-if="['blocked', 'failed'].includes(server.status)" @click="unblockServer(server)"
                                 class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">
                                 Unblock
                             </button>
