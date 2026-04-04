@@ -30,11 +30,10 @@ rm -rf node_modules
 # Run migrations
 php artisan migrate --force
 
-# Ensure the blockip.sh script is in storage
-if [ ! -f storage/app/blockip.sh ]; then
-    echo "⚠️  Warning: blockip.sh not found in storage/app/"
-    echo "   Upload it manually or it will be copied on first server interaction."
-fi
+# blockip.sh is bundled in the repo at storage/app/blockip.sh
+# It's automatically updated via git pull above
+chmod +x storage/app/blockip.sh
+echo "📥 blockip.sh is up to date (pulled from repo)"
 
 # Clear and rebuild caches
 php artisan config:cache
@@ -54,5 +53,4 @@ echo ""
 echo "📋 Post-deploy checklist:"
 echo "   1. Ensure .env is configured (APP_KEY, DB, QUEUE_CONNECTION=database)"
 echo "   2. Ensure queue worker is running: php artisan queue:work --tries=3"
-echo "   3. Ensure storage/app/blockip.sh exists"
-echo "   4. Set WEBAUTHN_ID to your domain in .env for passkeys"
+echo "   3. Set WEBAUTHN_ID to your domain in .env for passkeys"

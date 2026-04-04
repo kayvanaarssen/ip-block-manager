@@ -163,8 +163,7 @@ php artisan key:generate
 touch database/database.sqlite
 php artisan migrate --seed
 
-# Copy the blockip.sh script to storage
-cp /path/to/blockip.sh storage/app/blockip.sh
+# blockip.sh is already bundled in the repo at storage/app/blockip.sh
 
 # Start development servers (3 terminals)
 php artisan serve          # Backend on http://localhost:8000
@@ -252,9 +251,9 @@ Command: php artisan queue:work --tries=3 --sleep=3 --timeout=90
 Directory: /home/ploi/your-domain.com
 ```
 
-### 5. Upload blockip.sh
+### 5. blockip.sh
 
-Upload the `blockip.sh` script to `storage/app/blockip.sh` on the server, or let the app auto-install it on first use.
+The `blockip.sh` script is bundled in the repo at `storage/app/blockip.sh` and automatically kept up to date via `git pull` during deploys. No manual upload needed.
 
 ### 6. Initial setup
 
