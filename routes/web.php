@@ -7,6 +7,7 @@ use App\Http\Controllers\ServerController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\PasskeyController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,6 +45,8 @@ Route::middleware('auth')->group(function () {
     // Blocked IPs
     Route::resource('blocked-ips', BlockedIpController::class)->parameters(['blocked-ips' => 'blockedIp']);
     Route::post('/blocked-ips/{blockedIp}/unblock', [BlockedIpController::class, 'unblock'])->name('blocked-ips.unblock');
+    Route::post('/blocked-ips/{blockedIp}/unblock-server/{server}', [BlockedIpController::class, 'unblockServer'])->name('blocked-ips.unblock-server');
+    Route::delete('/blocked-ips/{blockedIp}/force-delete', [BlockedIpController::class, 'forceDelete'])->name('blocked-ips.force-delete');
     Route::get('/blocked-ips/{blockedIp}/status', [BlockedIpController::class, 'status'])->name('blocked-ips.status');
 
     // Profile
@@ -54,6 +57,11 @@ Route::middleware('auth')->group(function () {
 
     // Users management
     Route::resource('users', UserController::class)->except(['show']);
+
+    // Settings
+    Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::delete('/settings/logo', [SettingsController::class, 'removeLogo'])->name('settings.remove-logo');
 
     // Audit Log
     Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');

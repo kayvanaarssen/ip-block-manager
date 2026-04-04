@@ -1,6 +1,10 @@
 <script setup>
-import { ref } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
+
+const page = usePage()
+const appSettings = computed(() => page.props.appSettings)
+const appName = computed(() => appSettings.value?.app_name || 'IP Block Manager')
 
 const form = useForm({
     email: '',
@@ -54,10 +58,17 @@ const loginWithPasskey = async () => {
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-primary-900 px-4">
         <div class="w-full max-w-sm">
             <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-600/30">
+                <!-- Custom logo or default -->
+                <template v-if="appSettings?.logo_dark">
+                    <img :src="appSettings.logo_dark" :alt="appName" class="w-16 h-16 object-contain mx-auto mb-4" />
+                </template>
+                <template v-else-if="appSettings?.logo_light">
+                    <img :src="appSettings.logo_light" :alt="appName" class="w-16 h-16 object-contain mx-auto mb-4" />
+                </template>
+                <div v-else class="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-600/30">
                     <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                 </div>
-                <h1 class="text-2xl font-bold text-white">IP Block Manager</h1>
+                <h1 class="text-2xl font-bold text-white">{{ appName }}</h1>
                 <p class="text-gray-400 mt-1 text-sm">Sign in to manage your servers</p>
             </div>
 

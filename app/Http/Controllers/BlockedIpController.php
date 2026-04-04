@@ -110,4 +110,28 @@ class BlockedIpController extends Controller
             ]),
         ]);
     }
+
+    /**
+     * Remove the blocked IP entry from the database without triggering SSH unblock.
+     * Useful for cleaning up orphaned/failed entries.
+     */
+    public function forceDelete(BlockedIp $blockedIp)
+    {
+        $ip = $blockedIp->ip_address;
+        $blockedIp->servers()->detach();
+        $blockedIp->delete();
+
+        return redirect()->route('blocked-ips.index')
+            ->with('success', "Removed {$ip} entry from the database.");
+    }
+
+    /**
+     * Unblock from a single server (called from the index page).
+     */
+    public function unblockServer(BlockedIp $blockedIp, Server $server, IpBlockService $ipBlockService)
+    {
+        $ipBlockService->unblockFromServers($blockedIp, collect([$server]));
+
+        return back()->with('success', "Unblocking {$blockedIp->ip_address} from {$server->name}...");
+    }
 }

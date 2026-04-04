@@ -6,6 +6,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 const props = defineProps({ blockedIps: Object, filters: Object })
 
 const search = ref(props.filters?.search || '')
+const expandedRow = ref(null)
 
 const statusColors = {
     pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -16,9 +17,25 @@ const statusColors = {
     unblocked: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
 }
 
+const toggleExpand = (id) => {
+    expandedRow.value = expandedRow.value === id ? null : id
+}
+
 const confirmUnblockAll = (ip) => {
     if (confirm(`Unblock ${ip.ip_address} from ALL servers?`)) {
         router.delete(route('blocked-ips.destroy', ip.id))
+    }
+}
+
+const confirmUnblockServer = (ip, server) => {
+    if (confirm(`Unblock ${ip.ip_address} from ${server.name}?`)) {
+        router.post(route('blocked-ips.unblock-server', [ip.id, server.id]))
+    }
+}
+
+const confirmDeleteEntry = (ip) => {
+    if (confirm(`Delete the entry for ${ip.ip_address} from the database? This will NOT unblock it on any servers — it only removes the record.`)) {
+        router.delete(route('blocked-ips.force-delete', ip.id))
     }
 }
 </script>
@@ -47,30 +64,60 @@ const confirmUnblockAll = (ip) => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                        <tr v-for="ip in blockedIps.data" :key="ip.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                            <td class="px-5 py-3">
-                                <Link :href="route('blocked-ips.show', ip.id)" class="font-mono font-semibold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
-                                    {{ ip.ip_address }}
-                                </Link>
-                            </td>
-                            <td class="px-5 py-3 text-gray-500 dark:text-gray-400 max-w-[200px] truncate hidden sm:table-cell">{{ ip.reason || '-' }}</td>
-                            <td class="px-5 py-3">
-                                <div class="flex flex-wrap gap-1">
-                                    <span v-for="s in ip.servers" :key="s.id" :class="statusColors[s.status]"
-                                        class="text-xs font-medium px-2 py-0.5 rounded-full" :title="s.error_message || s.status">
-                                        {{ s.name }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="px-5 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell">{{ ip.blocked_by }}</td>
-                            <td class="px-5 py-3 text-gray-400 dark:text-gray-500 text-xs hidden lg:table-cell">{{ ip.created_at }}</td>
-                            <td class="px-5 py-3 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <Link :href="route('blocked-ips.show', ip.id)" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium">View</Link>
-                                    <button @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
-                                </div>
-                            </td>
-                        </tr>
+                        <template v-for="ip in blockedIps.data" :key="ip.id">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                <td class="px-5 py-3">
+                                    <Link :href="route('blocked-ips.show', ip.id)" class="font-mono font-semibold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                                        {{ ip.ip_address }}
+                                    </Link>
+                                </td>
+                                <td class="px-5 py-3 text-gray-500 dark:text-gray-400 max-w-[200px] truncate hidden sm:table-cell">{{ ip.reason || '-' }}</td>
+                                <td class="px-5 py-3">
+                                    <div class="flex flex-wrap gap-1">
+                                        <span v-for="s in ip.servers" :key="s.id" :class="statusColors[s.status]"
+                                            class="text-xs font-medium px-2 py-0.5 rounded-full" :title="s.error_message || s.status">
+                                            {{ s.name }}
+                                        </span>
+                                        <span v-if="!ip.servers?.length" class="text-xs text-gray-400 dark:text-gray-500 italic">No servers</span>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell">{{ ip.blocked_by }}</td>
+                                <td class="px-5 py-3 text-gray-400 dark:text-gray-500 text-xs hidden lg:table-cell">{{ ip.created_at }}</td>
+                                <td class="px-5 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <Link :href="route('blocked-ips.show', ip.id)" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium">View</Link>
+                                        <button v-if="ip.servers?.length" @click="toggleExpand(ip.id)" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                                            {{ expandedRow === ip.id ? 'Hide' : 'Servers' }}
+                                        </button>
+                                        <button v-if="ip.servers?.length" @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
+                                        <button @click="confirmDeleteEntry(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Expanded per-server row -->
+                            <tr v-if="expandedRow === ip.id">
+                                <td colspan="6" class="bg-gray-50 dark:bg-gray-800/30 px-5 py-3">
+                                    <div class="space-y-2">
+                                        <div v-for="server in ip.servers" :key="server.id"
+                                            class="flex items-center justify-between bg-white dark:bg-gray-900 rounded-lg px-4 py-2.5 border border-gray-200 dark:border-gray-700">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ server.name }}</span>
+                                                <span :class="statusColors[server.status]" class="text-xs font-medium px-2 py-0.5 rounded-full">
+                                                    {{ server.status }}
+                                                </span>
+                                                <span v-if="server.error_message" class="text-xs text-red-500 dark:text-red-400 truncate max-w-[200px]" :title="server.error_message">
+                                                    {{ server.error_message }}
+                                                </span>
+                                            </div>
+                                            <button v-if="server.status === 'blocked'" @click="confirmUnblockServer(ip, server)"
+                                                class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium whitespace-nowrap">
+                                                Unblock
+                                            </button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
                         <tr v-if="!blockedIps.data?.length">
                             <td colspan="6" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">No blocked IPs</td>
                         </tr>

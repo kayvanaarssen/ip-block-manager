@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AppSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -47,6 +49,15 @@ class HandleInertiaRequests extends Middleware
                         ->get()
                         ->map(fn ($key) => $key->only(['id', 'name', 'last_used_at'])),
                 ] : null,
+            ],
+            'appSettings' => fn () => Schema::hasTable('app_settings') ? [
+                'app_name' => AppSetting::get('app_name', config('app.name', 'IPBlock')),
+                'logo_light' => AppSetting::get('logo_light') ? '/storage/' . AppSetting::get('logo_light') : null,
+                'logo_dark' => AppSetting::get('logo_dark') ? '/storage/' . AppSetting::get('logo_dark') : null,
+            ] : [
+                'app_name' => config('app.name', 'IPBlock'),
+                'logo_light' => null,
+                'logo_dark' => null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
