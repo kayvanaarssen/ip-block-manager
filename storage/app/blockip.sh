@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_VERSION="2.1.0"
+SCRIPT_VERSION="2.2.0"
 
 BASE_DIR="/root/ip_blocks"
 BLOCKLIST_FILE="${BASE_DIR}/blocked-ips.list"
@@ -9,7 +9,8 @@ LOG_FILE="${BASE_DIR}/ip-block.log"
 NGINX_DENY_FILE="${BASE_DIR}/nginx-deny-ip.conf"
 NGINX_CONF="/etc/nginx/nginx.conf"
 NGINX_INCLUDE_LINE="include ${NGINX_DENY_FILE};"
-NGINX_ERROR_PAGE="error_page 403 =444 /;"
+# We need to check if error_page works; if not, deny alone is still fine (403)
+NGINX_ERROR_PAGE_LINE="error_page 403 =444 /444-blocked;"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -138,7 +139,7 @@ install_nginx_blocking() {
     local needs_errorpage=0
 
     grep -Fq "$NGINX_INCLUDE_LINE" "$NGINX_CONF" || needs_include=1
-    grep -Fq "$NGINX_ERROR_PAGE" "$NGINX_CONF" || needs_errorpage=1
+    grep -Fq "$NGINX_ERROR_PAGE_LINE" "$NGINX_CONF" || needs_errorpage=1
 
     if (( !needs_include && !needs_errorpage )); then
         echo "  [NGINX] already configured (deny + 444)"
@@ -156,9 +157,9 @@ install_nginx_blocking() {
     fi
     if (( needs_errorpage )); then
         if [[ -n "$insert_lines" ]]; then
-            insert_lines="${insert_lines}\n    ${NGINX_ERROR_PAGE}"
+            insert_lines="${insert_lines}\n    ${NGINX_ERROR_PAGE_LINE}"
         else
-            insert_lines="    ${NGINX_ERROR_PAGE}"
+            insert_lines="    ${NGINX_ERROR_PAGE_LINE}"
         fi
     fi
 
@@ -173,19 +174,57 @@ install_nginx_blocking() {
     local nginx_test
     nginx_test=$(nginx -t 2>&1) || true
     if echo "$nginx_test" | grep -q "test failed"; then
-        echo -e "${RED}  [NGINX] config test failed — restoring backup${NC}"
+        echo -e "${YELLOW}  [NGINX] config with error_page failed, trying deny-only${NC}"
         echo "  [NGINX] Error: $nginx_test"
+
+        # Restore and try again with just the deny include (no error_page)
         cp -a "$b" "$NGINX_CONF"
-        return 1
+
+        if (( needs_include )); then
+            local b2
+            b2=$(backup_file "$NGINX_CONF")
+            awk -v lines="    ${NGINX_INCLUDE_LINE}" '
+                BEGIN{ok=0}
+                {print}
+                /http[[:space:]]*\{/ && !ok {print lines; ok=1}
+                END{ if(!ok) exit 1 }
+            ' "$b2" > "${NGINX_CONF}.tmp"
+            mv "${NGINX_CONF}.tmp" "$NGINX_CONF"
+
+            nginx_test=$(nginx -t 2>&1) || true
+            if echo "$nginx_test" | grep -q "test failed"; then
+                echo -e "${RED}  [NGINX] deny-only also failed — restoring backup${NC}"
+                echo "  [NGINX] Error: $nginx_test"
+                cp -a "$b2" "$NGINX_CONF"
+                return 1
+            fi
+        else
+            echo "  [NGINX] deny include already present, error_page 444 not supported by this nginx"
+        fi
+
+        systemctl reload nginx
+        echo -e "${YELLOW}  [NGINX] blocking installed (deny only — returns 403, not 444)${NC}"
+        echo "  [NGINX] Note: error_page 403 =444 not supported, blocked IPs get 403 instead"
+        return 0
     fi
 
     systemctl reload nginx
     echo -e "${GREEN}  [NGINX] blocking installed (deny + error_page 403 =444)${NC}"
 }
 
-# Clean up any v2.0.0 geo block / server snippet mess
+# Clean up any v2.0.0 geo block / server snippet mess and old error_page lines
 cleanup_geo_block() {
     local cleaned=0
+
+    # Remove old error_page lines from previous attempts
+    for old_ep in "error_page 403 =444 /;" "error_page 403 =444 /444.html;" "error_page 403 =444 /444-blocked;"; do
+        if grep -Fq "$old_ep" "$NGINX_CONF"; then
+            echo "  [NGINX] Removing old error_page line: $old_ep"
+            grep -Fv "$old_ep" "$NGINX_CONF" > "${NGINX_CONF}.tmp"
+            mv "${NGINX_CONF}.tmp" "$NGINX_CONF"
+            cleaned=1
+        fi
+    done
 
     # Remove geo block from nginx.conf if present
     if grep -Fq 'geo $blocked_ip' "$NGINX_CONF"; then
@@ -454,13 +493,18 @@ status_ip() {
 
 block_ip() {
     local ip="$1"
+    local nginx_failed=0
     echo -e "Blocking ${YELLOW}${ip}${NC} ..."
     block_ufw "$ip"
     block_fail2ban "$ip"
-    block_nginx "$ip"
+    block_nginx "$ip" || nginx_failed=1
     add_to_registry "$ip"
     log_action block "$ip"
-    echo -e "${GREEN}Blocked ${ip}${NC}"
+    if (( nginx_failed )); then
+        echo -e "${YELLOW}Blocked ${ip} (nginx had issues — UFW/Fail2Ban OK)${NC}"
+    else
+        echo -e "${GREEN}Blocked ${ip}${NC}"
+    fi
 }
 
 unblock_ip() {
@@ -468,7 +512,7 @@ unblock_ip() {
     echo -e "Unblocking ${YELLOW}${ip}${NC} ..."
     unblock_ufw "$ip"
     unblock_fail2ban "$ip"
-    unblock_nginx "$ip"
+    unblock_nginx "$ip" || true
     remove_from_registry "$ip"
     log_action unblock "$ip"
     echo -e "${GREEN}Unblocked ${ip}${NC}"
