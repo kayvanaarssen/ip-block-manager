@@ -1,13 +1,29 @@
 <script setup>
+import { ref } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 
 const props = defineProps({ users: Array })
 
+const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Delete', action: null })
+
 const confirmDelete = (user) => {
-    if (confirm(`Delete user "${user.name}"? This cannot be undone.`)) {
-        router.delete(route('users.destroy', user.id))
+    confirmModal.value = {
+        show: true,
+        title: 'Delete user',
+        message: `Are you sure you want to delete "${user.name}"? This cannot be undone.`,
+        variant: 'danger',
+        confirmText: 'Delete',
+        action: () => router.delete(route('users.destroy', user.id)),
     }
+}
+const onConfirm = () => {
+    confirmModal.value.action?.()
+    confirmModal.value.show = false
+}
+const onCancel = () => {
+    confirmModal.value.show = false
 }
 </script>
 
@@ -46,5 +62,15 @@ const confirmDelete = (user) => {
                 </tbody>
             </table>
         </div>
+
+        <ConfirmModal
+            :show="confirmModal.show"
+            :title="confirmModal.title"
+            :message="confirmModal.message"
+            :variant="confirmModal.variant"
+            :confirm-text="confirmModal.confirmText"
+            @confirm="onConfirm"
+            @cancel="onCancel"
+        />
     </AppLayout>
 </template>

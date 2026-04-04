@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { Head, useForm, usePage, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 
 const props = defineProps({ user: Object })
 
@@ -65,9 +66,18 @@ const addPasskey = async () => {
     }
 }
 
+const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Remove', action: null })
+const onConfirm = () => { confirmModal.value.action?.(); confirmModal.value.show = false }
+const onCancel = () => { confirmModal.value.show = false }
+
 const deletePasskey = (id) => {
-    if (confirm('Remove this passkey? You won\'t be able to sign in with it anymore.')) {
-        router.delete(route('passkeys.destroy', id), { preserveScroll: true })
+    confirmModal.value = {
+        show: true,
+        title: 'Remove passkey',
+        message: 'Are you sure? You won\'t be able to sign in with this passkey anymore.',
+        variant: 'danger',
+        confirmText: 'Remove',
+        action: () => router.delete(route('passkeys.destroy', id), { preserveScroll: true }),
     }
 }
 </script>
@@ -183,5 +193,15 @@ const deletePasskey = (id) => {
                 </button>
             </form>
         </div>
+
+        <ConfirmModal
+            :show="confirmModal.show"
+            :title="confirmModal.title"
+            :message="confirmModal.message"
+            :variant="confirmModal.variant"
+            :confirm-text="confirmModal.confirmText"
+            @confirm="onConfirm"
+            @cancel="onCancel"
+        />
     </AppLayout>
 </template>

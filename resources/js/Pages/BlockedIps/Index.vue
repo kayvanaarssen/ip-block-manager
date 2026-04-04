@@ -1,11 +1,11 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 
 const props = defineProps({ blockedIps: Object, filters: Object })
 
-const search = ref(props.filters?.search || '')
 const expandedRow = ref(null)
 
 const statusColors = {
@@ -21,22 +21,48 @@ const toggleExpand = (id) => {
     expandedRow.value = expandedRow.value === id ? null : id
 }
 
+// Confirmation modal state
+const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Confirm', action: null })
+
+const showConfirm = ({ title, message, variant = 'danger', confirmText = 'Confirm', action }) => {
+    confirmModal.value = { show: true, title, message, variant, confirmText, action }
+}
+const onConfirm = () => {
+    confirmModal.value.action?.()
+    confirmModal.value.show = false
+}
+const onCancel = () => {
+    confirmModal.value.show = false
+}
+
 const confirmUnblockAll = (ip) => {
-    if (confirm(`Unblock ${ip.ip_address} from ALL servers?`)) {
-        router.delete(route('blocked-ips.destroy', ip.id))
-    }
+    showConfirm({
+        title: 'Unblock from all servers',
+        message: `This will unblock ${ip.ip_address} from all servers via SSH. The IP will be removed from UFW, Fail2Ban, and NGINX on each server.`,
+        variant: 'info',
+        confirmText: 'Unblock All',
+        action: () => router.delete(route('blocked-ips.destroy', ip.id)),
+    })
 }
 
 const confirmUnblockServer = (ip, server) => {
-    if (confirm(`Unblock ${ip.ip_address} from ${server.name}?`)) {
-        router.post(route('blocked-ips.unblock-server', [ip.id, server.id]))
-    }
+    showConfirm({
+        title: `Unblock from ${server.name}`,
+        message: `This will unblock ${ip.ip_address} from ${server.name} only. Other servers will not be affected.`,
+        variant: 'info',
+        confirmText: 'Unblock',
+        action: () => router.post(route('blocked-ips.unblock-server', [ip.id, server.id])),
+    })
 }
 
 const confirmDeleteEntry = (ip) => {
-    if (confirm(`Delete the entry for ${ip.ip_address} from the database? This will NOT unblock it on any servers — it only removes the record.`)) {
-        router.delete(route('blocked-ips.force-delete', ip.id))
-    }
+    showConfirm({
+        title: 'Delete entry',
+        message: `Remove ${ip.ip_address} from the database. This will NOT unblock it on any servers — it only removes the record from the interface.`,
+        variant: 'danger',
+        confirmText: 'Delete',
+        action: () => router.delete(route('blocked-ips.force-delete', ip.id)),
+    })
 }
 </script>
 
@@ -135,5 +161,15 @@ const confirmDeleteEntry = (ip) => {
                 </template>
             </div>
         </div>
+
+        <ConfirmModal
+            :show="confirmModal.show"
+            :title="confirmModal.title"
+            :message="confirmModal.message"
+            :variant="confirmModal.variant"
+            :confirm-text="confirmModal.confirmText"
+            @confirm="onConfirm"
+            @cancel="onCancel"
+        />
     </AppLayout>
 </template>

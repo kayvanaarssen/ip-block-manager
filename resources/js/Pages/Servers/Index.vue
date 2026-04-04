@@ -1,13 +1,29 @@
 <script setup>
+import { ref } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 
 const props = defineProps({ servers: Array })
 
+const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Delete', action: null })
+
 const confirmDelete = (server) => {
-    if (confirm(`Delete server "${server.name}"? This cannot be undone.`)) {
-        router.delete(route('servers.destroy', server.id))
+    confirmModal.value = {
+        show: true,
+        title: 'Delete server',
+        message: `Are you sure you want to delete "${server.name}"? This cannot be undone.`,
+        variant: 'danger',
+        confirmText: 'Delete',
+        action: () => router.delete(route('servers.destroy', server.id)),
     }
+}
+const onConfirm = () => {
+    confirmModal.value.action?.()
+    confirmModal.value.show = false
+}
+const onCancel = () => {
+    confirmModal.value.show = false
 }
 </script>
 
@@ -63,5 +79,15 @@ const confirmDelete = (server) => {
             <p class="text-gray-500 dark:text-gray-400 mb-4">No servers configured yet</p>
             <Link :href="route('servers.create')" class="text-primary-600 dark:text-primary-400 font-medium hover:underline">Add your first server</Link>
         </div>
+
+        <ConfirmModal
+            :show="confirmModal.show"
+            :title="confirmModal.title"
+            :message="confirmModal.message"
+            :variant="confirmModal.variant"
+            :confirm-text="confirmModal.confirmText"
+            @confirm="onConfirm"
+            @cancel="onCancel"
+        />
     </AppLayout>
 </template>

@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Head, Link, router, useForm } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 
 const props = defineProps({ blockedIp: Object })
 
@@ -34,14 +35,38 @@ const statusConfig = {
     unblocked: { color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', label: 'Unblocked' },
 }
 
-const unblockServer = (serverId) => {
-    router.post(route('blocked-ips.unblock', props.blockedIp.id), { server_ids: [serverId] })
+// Confirmation modal state
+const confirmModal = ref({ show: false, title: '', message: '', variant: 'info', confirmText: 'Confirm', action: null })
+
+const showConfirm = ({ title, message, variant = 'info', confirmText = 'Confirm', action }) => {
+    confirmModal.value = { show: true, title, message, variant, confirmText, action }
+}
+const onConfirm = () => {
+    confirmModal.value.action?.()
+    confirmModal.value.show = false
+}
+const onCancel = () => {
+    confirmModal.value.show = false
+}
+
+const unblockServer = (server) => {
+    showConfirm({
+        title: `Unblock from ${server.name}`,
+        message: `This will unblock ${props.blockedIp.ip_address} from ${server.name} via SSH.`,
+        variant: 'info',
+        confirmText: 'Unblock',
+        action: () => router.post(route('blocked-ips.unblock', props.blockedIp.id), { server_ids: [server.id] }),
+    })
 }
 
 const unblockAll = () => {
-    if (confirm(`Unblock ${props.blockedIp.ip_address} from all servers?`)) {
-        router.delete(route('blocked-ips.destroy', props.blockedIp.id))
-    }
+    showConfirm({
+        title: 'Unblock from all servers',
+        message: `This will unblock ${props.blockedIp.ip_address} from all servers via SSH.`,
+        variant: 'info',
+        confirmText: 'Unblock All',
+        action: () => router.delete(route('blocked-ips.destroy', props.blockedIp.id)),
+    })
 }
 </script>
 
@@ -80,7 +105,7 @@ const unblockAll = () => {
                             <span :class="statusConfig[server.status]?.color" class="text-xs font-medium px-3 py-1 rounded-full">
                                 {{ statusConfig[server.status]?.label || server.status }}
                             </span>
-                            <button v-if="server.status === 'blocked'" @click="unblockServer(server.id)"
+                            <button v-if="server.status === 'blocked'" @click="unblockServer(server)"
                                 class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">
                                 Unblock
                             </button>
@@ -96,5 +121,15 @@ const unblockAll = () => {
                 <p class="text-xs text-red-600 dark:text-red-400 mt-1 font-mono">{{ server.error_message }}</p>
             </div>
         </div>
+
+        <ConfirmModal
+            :show="confirmModal.show"
+            :title="confirmModal.title"
+            :message="confirmModal.message"
+            :variant="confirmModal.variant"
+            :confirm-text="confirmModal.confirmText"
+            @confirm="onConfirm"
+            @cancel="onCancel"
+        />
     </AppLayout>
 </template>

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 
 const props = defineProps({ settings: Object })
 const page = usePage()
@@ -36,16 +37,27 @@ const submit = () => {
     })
 }
 
+const confirmModal = ref({ show: false, title: '', message: '', variant: 'danger', confirmText: 'Remove', action: null })
+const onConfirm = () => { confirmModal.value.action?.(); confirmModal.value.show = false }
+const onCancel = () => { confirmModal.value.show = false }
+
 const removeLogo = (type) => {
-    if (confirm(`Remove the ${type} mode logo?`)) {
-        router.delete(route('settings.remove-logo'), {
-            data: { type },
-            preserveScroll: true,
-            onSuccess: () => {
-                if (type === 'light') lightPreview.value = null
-                else darkPreview.value = null
-            },
-        })
+    confirmModal.value = {
+        show: true,
+        title: `Remove ${type} mode logo`,
+        message: `Are you sure you want to remove the ${type} mode logo? The default icon will be used instead.`,
+        variant: 'warning',
+        confirmText: 'Remove',
+        action: () => {
+            router.delete(route('settings.remove-logo'), {
+                data: { type },
+                preserveScroll: true,
+                onSuccess: () => {
+                    if (type === 'light') lightPreview.value = null
+                    else darkPreview.value = null
+                },
+            })
+        },
     }
 }
 </script>
@@ -132,5 +144,15 @@ const removeLogo = (type) => {
                 </button>
             </form>
         </div>
+
+        <ConfirmModal
+            :show="confirmModal.show"
+            :title="confirmModal.title"
+            :message="confirmModal.message"
+            :variant="confirmModal.variant"
+            :confirm-text="confirmModal.confirmText"
+            @confirm="onConfirm"
+            @cancel="onCancel"
+        />
     </AppLayout>
 </template>
