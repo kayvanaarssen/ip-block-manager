@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_VERSION="2.3.0"
+SCRIPT_VERSION="2.4.0"
 
 BASE_DIR="/root/ip_blocks"
 BLOCKLIST_FILE="${BASE_DIR}/blocked-ips.list"
@@ -386,7 +386,8 @@ unblock_ufw() {
         local n
         n=$(ufw status numbered | awk -v ip="$1" 'index($0,ip) && /DENY/{gsub(/[][]/,"",$1);print $1;exit}')
         [[ -z "$n" ]] && break
-        yes | ufw delete "$n" >/dev/null
+        # Use --force to skip confirmation prompt — avoids yes|pipe + pipefail SIGPIPE bug
+        ufw --force delete "$n" >/dev/null 2>&1 || true
         removed=1
     done
     if (( removed )); then
