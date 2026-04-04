@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_VERSION="2.0.0"
+
 BASE_DIR="/root/ip_blocks"
 BLOCKLIST_FILE="${BASE_DIR}/blocked-ips.list"
 LOG_FILE="${BASE_DIR}/ip-block.log"
-NGINX_BLOCK_FILE="${BASE_DIR}/nginx-deny-ip.conf"
+NGINX_BLOCK_FILE="${BASE_DIR}/nginx-blocked-ips.conf"
+NGINX_CHECK_FILE="${BASE_DIR}/nginx-blocked-check.conf"
 NGINX_CONF="/etc/nginx/nginx.conf"
-NGINX_INCLUDE_LINE="include /root/ip_blocks/nginx-deny-ip.conf;"
+NGINX_SITES_DIR="/etc/nginx/sites-enabled"
+
+# Legacy file (will be migrated)
+LEGACY_DENY_FILE="${BASE_DIR}/nginx-deny-ip.conf"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,8 +26,11 @@ Usage:
   $0 --unblock <ip>        Unblock an IPv4/IPv6 address or CIDR range
   $0 --status <ip>         Check block status of an IP
   $0 --list                List all blocked IPs
-  $0 --install-nginx-include   Install the nginx include directive
+  $0 --install-nginx       Install/upgrade nginx blocking (geo block + 444)
+  $0 --migrate             Migrate from old deny-based to new 444-based blocking
   $0 --help                Show this help
+
+Nginx blocking returns 444 (drop connection) instead of 403 (forbidden).
 EOM
     exit 0
 }
@@ -40,8 +49,19 @@ ensure_files() {
     chmod 700 "$BASE_DIR"
     touch "$BLOCKLIST_FILE" "$LOG_FILE" "$NGINX_BLOCK_FILE"
     chmod 600 "$BLOCKLIST_FILE" "$LOG_FILE"
-    # nginx worker needs read access to the deny file
+    # nginx worker needs read access to the block file
     chmod 644 "$NGINX_BLOCK_FILE"
+
+    # Create the server-block snippet if it doesn't exist
+    if [[ ! -f "$NGINX_CHECK_FILE" ]]; then
+        cat > "$NGINX_CHECK_FILE" <<'SNIPPET'
+# IP Block Manager — return 444 for blocked IPs
+if ($blocked_ip) {
+    return 444;
+}
+SNIPPET
+        chmod 644 "$NGINX_CHECK_FILE"
+    fi
 }
 
 require_root() {
@@ -69,7 +89,6 @@ validate_ipv4_cidr() {
 
 validate_ipv6() {
     local ip="$1"
-    # Basic IPv6 validation — accept standard and compressed forms
     [[ "$ip" =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]] || \
     [[ "$ip" =~ ^::([0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{0,4}$ ]] || \
     [[ "$ip" =~ ^[0-9a-fA-F]{1,4}::([0-9a-fA-F]{1,4}:){0,4}[0-9a-fA-F]{0,4}$ ]] || \
@@ -117,30 +136,222 @@ backup_file() {
     echo "$b"
 }
 
-ensure_nginx_include_installed() {
-    grep -Fq "$NGINX_INCLUDE_LINE" "$NGINX_CONF" && return 0
-    echo "[NGINX] Installing global include directive"
+# ============================================================
+# NGINX — geo block + return 444 approach
+# ============================================================
+
+# Install the geo block in nginx.conf http block
+install_nginx_geo_block() {
+    local geo_start="geo \$blocked_ip {"
+    local geo_include="    include ${NGINX_BLOCK_FILE};"
+
+    # Already installed?
+    if grep -Fq "$geo_start" "$NGINX_CONF"; then
+        echo "  [NGINX] geo block already in nginx.conf"
+        return 0
+    fi
+
+    echo "  [NGINX] Installing geo block in nginx.conf"
     local b
     b=$(backup_file "$NGINX_CONF")
-    awk -v l="    $NGINX_INCLUDE_LINE" '
+
+    # Remove legacy deny-file include if present
+    local legacy_include="include /root/ip_blocks/nginx-deny-ip.conf;"
+    if grep -Fq "$legacy_include" "$NGINX_CONF"; then
+        echo "  [NGINX] Removing legacy deny include"
+        grep -Fv "$legacy_include" "$b" > "${NGINX_CONF}.tmp"
+        mv "${NGINX_CONF}.tmp" "$b"
+    fi
+
+    # Insert geo block after "http {"
+    awk -v geo_block="    geo \$blocked_ip {\n        default 0;\n        include ${NGINX_BLOCK_FILE};\n    }" '
         BEGIN{ok=0}
         {print}
-        /http[[:space:]]*\{/ && !ok {print l; ok=1}
+        /http[[:space:]]*\{/ && !ok {print geo_block; ok=1}
         END{ if(!ok) exit 1 }
     ' "$b" > "${NGINX_CONF}.tmp"
     mv "${NGINX_CONF}.tmp" "$NGINX_CONF"
+
     if ! nginx -t 2>/dev/null; then
-        echo -e "${RED}nginx config test failed — restoring backup${NC}"
+        echo -e "${RED}  [NGINX] config test failed — restoring backup${NC}"
         cp -a "$b" "$NGINX_CONF"
-        exit 1
+        return 1
     fi
-    systemctl reload nginx
+    echo "  [NGINX] geo block installed"
 }
 
-# --- UFW ---
+# Install the 444 check snippet into all server blocks in sites-enabled
+install_nginx_server_snippets() {
+    local check_include="include ${NGINX_CHECK_FILE};"
+
+    if [[ ! -d "$NGINX_SITES_DIR" ]]; then
+        echo "  [NGINX] No sites-enabled directory found, skipping snippet injection"
+        return 0
+    fi
+
+    local modified=0
+    for conf_file in "$NGINX_SITES_DIR"/*; do
+        [[ -f "$conf_file" ]] || continue
+
+        if grep -Fq "$check_include" "$conf_file"; then
+            continue
+        fi
+
+        echo "  [NGINX] Adding 444 snippet to $(basename "$conf_file")"
+        local b
+        b=$(backup_file "$conf_file")
+
+        # Insert the include after the first "server {" line
+        awk -v inc="        ${check_include}" '
+            BEGIN{done=0}
+            {print}
+            /server[[:space:]]*\{/ && !done {print inc; done=1}
+        ' "$b" > "${conf_file}.tmp"
+        mv "${conf_file}.tmp" "$conf_file"
+        modified=1
+    done
+
+    if (( modified )); then
+        if ! nginx -t 2>/dev/null; then
+            echo -e "${RED}  [NGINX] config test failed after snippet injection — check manually${NC}"
+            return 1
+        fi
+        echo "  [NGINX] snippets installed in server blocks"
+    else
+        echo "  [NGINX] all server blocks already have snippets"
+    fi
+}
+
+# Full nginx setup
+install_nginx_blocking() {
+    has_command nginx || { echo "  [NGINX] not installed, skipping"; return 0; }
+    install_nginx_geo_block
+    install_nginx_server_snippets
+    systemctl reload nginx
+    echo -e "${GREEN}  [NGINX] blocking setup complete (returns 444)${NC}"
+}
+
+# Migrate from old deny-based to new geo/444 approach
+migrate_nginx() {
+    has_command nginx || { echo "  [NGINX] not installed, skipping"; return 0; }
+
+    echo "Migrating nginx blocking from 403 deny to 444 drop..."
+
+    # Convert old deny file entries to new geo format
+    if [[ -f "$LEGACY_DENY_FILE" ]] && [[ -s "$LEGACY_DENY_FILE" ]]; then
+        echo "  [NGINX] Converting legacy deny entries to geo format"
+        local temp_file="${NGINX_BLOCK_FILE}.migrate"
+        > "$temp_file"
+
+        while IFS= read -r line; do
+            # Extract IP from "deny IP;" format
+            local ip
+            ip=$(echo "$line" | sed -n 's/^deny \(.*\);$/\1/p')
+            if [[ -n "$ip" ]]; then
+                echo "$ip 1;" >> "$temp_file"
+            fi
+        done < "$LEGACY_DENY_FILE"
+
+        if [[ -s "$temp_file" ]]; then
+            # Merge with any existing geo entries
+            if [[ -s "$NGINX_BLOCK_FILE" ]]; then
+                cat "$temp_file" >> "$NGINX_BLOCK_FILE"
+                sort -u "$NGINX_BLOCK_FILE" -o "$NGINX_BLOCK_FILE"
+            else
+                mv "$temp_file" "$NGINX_BLOCK_FILE"
+            fi
+            chmod 644 "$NGINX_BLOCK_FILE"
+            echo "  [NGINX] Converted $(wc -l < "$NGINX_BLOCK_FILE") entries"
+        else
+            rm -f "$temp_file"
+        fi
+
+        # Keep backup of old file, remove original
+        mv "$LEGACY_DENY_FILE" "${LEGACY_DENY_FILE}.migrated.$(date +%s)"
+        echo "  [NGINX] Legacy deny file archived"
+    fi
+
+    # Remove old deny includes from server configs
+    local old_deny_include="include /root/ip_blocks/nginx-deny-ip.conf;"
+    if [[ -d "$NGINX_SITES_DIR" ]]; then
+        for conf_file in "$NGINX_SITES_DIR"/*; do
+            [[ -f "$conf_file" ]] || continue
+            if grep -Fq "$old_deny_include" "$conf_file"; then
+                echo "  [NGINX] Removing old deny include from $(basename "$conf_file")"
+                grep -Fv "$old_deny_include" "$conf_file" > "${conf_file}.tmp"
+                mv "${conf_file}.tmp" "$conf_file"
+            fi
+        done
+    fi
+
+    # Install new geo block + snippets
+    install_nginx_blocking
+
+    log_action migrate-nginx "n/a"
+    echo -e "${GREEN}Migration complete — nginx now returns 444 for blocked IPs${NC}"
+}
+
+# Check if nginx blocking is set up (new style)
+nginx_is_setup() {
+    grep -Fq "geo \$blocked_ip" "$NGINX_CONF" 2>/dev/null
+}
+
+# Ensure nginx is set up on first block
+ensure_nginx_setup() {
+    if ! nginx_is_setup; then
+        # Check if we need to migrate from old format
+        if [[ -f "$LEGACY_DENY_FILE" ]] && [[ -s "$LEGACY_DENY_FILE" ]]; then
+            migrate_nginx
+        else
+            install_nginx_blocking
+        fi
+    fi
+}
+
+nginx_block_exists() {
+    grep -Fq "$1 1;" "$NGINX_BLOCK_FILE" 2>/dev/null
+}
+
+block_nginx() {
+    has_command nginx || return 0
+    ensure_nginx_setup
+    if nginx_block_exists "$1"; then
+        echo "  [NGINX] already blocked"
+        return 0
+    fi
+    echo "$1 1;" >> "$NGINX_BLOCK_FILE"
+    if nginx -t 2>/dev/null; then
+        systemctl reload nginx
+        echo "  [NGINX] blocked (444 drop)"
+    else
+        echo -e "${RED}  [NGINX] config test failed — removing last entry${NC}"
+        grep -Fxv "$1 1;" "$NGINX_BLOCK_FILE" > "${NGINX_BLOCK_FILE}.tmp" || true
+        mv "${NGINX_BLOCK_FILE}.tmp" "$NGINX_BLOCK_FILE"
+        return 1
+    fi
+}
+
+unblock_nginx() {
+    has_command nginx || return 0
+    if ! nginx_block_exists "$1"; then
+        echo "  [NGINX] no rule found"
+        return 0
+    fi
+    grep -Fxv "$1 1;" "$NGINX_BLOCK_FILE" > "${NGINX_BLOCK_FILE}.tmp" || true
+    mv "${NGINX_BLOCK_FILE}.tmp" "$NGINX_BLOCK_FILE"
+    if nginx -t 2>/dev/null; then
+        systemctl reload nginx
+        echo "  [NGINX] rule removed and reloaded"
+    else
+        echo -e "${YELLOW}  [NGINX] warning: config test failed after removal${NC}"
+    fi
+}
+
+# ============================================================
+# UFW
+# ============================================================
 
 ufw_rule_exists() {
-    # Use word boundary matching to avoid partial IP matches
     ufw status | grep -wF "$1" | grep -q "DENY"
 }
 
@@ -171,7 +382,9 @@ unblock_ufw() {
     fi
 }
 
-# --- Fail2Ban ---
+# ============================================================
+# Fail2Ban
+# ============================================================
 
 get_jails() {
     fail2ban-client status 2>/dev/null \
@@ -203,50 +416,9 @@ unblock_fail2ban() {
     echo "  [Fail2Ban] unbanned from all jails"
 }
 
-# --- NGINX ---
-
-nginx_block_exists() {
-    # Exact line match to prevent partial IP collisions
-    grep -Fxq "deny $1;" "$NGINX_BLOCK_FILE" 2>/dev/null
-}
-
-block_nginx() {
-    has_command nginx || return 0
-    ensure_nginx_include_installed
-    if nginx_block_exists "$1"; then
-        echo "  [NGINX] already blocked"
-        return 0
-    fi
-    echo "deny $1;" >> "$NGINX_BLOCK_FILE"
-    if nginx -t 2>/dev/null; then
-        systemctl reload nginx
-        echo "  [NGINX] deny rule added and reloaded"
-    else
-        echo -e "${RED}  [NGINX] config test failed — removing last entry${NC}"
-        # Remove the line we just added
-        grep -Fxv "deny $1;" "$NGINX_BLOCK_FILE" > "${NGINX_BLOCK_FILE}.tmp" || true
-        mv "${NGINX_BLOCK_FILE}.tmp" "$NGINX_BLOCK_FILE"
-        return 1
-    fi
-}
-
-unblock_nginx() {
-    has_command nginx || return 0
-    if ! nginx_block_exists "$1"; then
-        echo "  [NGINX] no rule found"
-        return 0
-    fi
-    grep -Fxv "deny $1;" "$NGINX_BLOCK_FILE" > "${NGINX_BLOCK_FILE}.tmp" || true
-    mv "${NGINX_BLOCK_FILE}.tmp" "$NGINX_BLOCK_FILE"
-    if nginx -t 2>/dev/null; then
-        systemctl reload nginx
-        echo "  [NGINX] deny rule removed and reloaded"
-    else
-        echo -e "${YELLOW}  [NGINX] warning: config test failed after removal${NC}"
-    fi
-}
-
-# --- Status ---
+# ============================================================
+# Status
+# ============================================================
 
 status_ip() {
     local ip="$1"
@@ -282,11 +454,14 @@ status_ip() {
     fi
 
     echo -n "NGINX:     "
-    if grep -Fxq "deny $ip;" "$NGINX_BLOCK_FILE" 2>/dev/null; then
-        echo -e "${RED}DENIED${NC}"
+    if grep -Fq "$ip 1;" "$NGINX_BLOCK_FILE" 2>/dev/null; then
+        echo -e "${RED}BLOCKED (444 drop)${NC}"
+        found=1
+    elif [[ -f "$LEGACY_DENY_FILE" ]] && grep -Fq "deny $ip;" "$LEGACY_DENY_FILE" 2>/dev/null; then
+        echo -e "${YELLOW}DENIED (403 legacy — run --migrate)${NC}"
         found=1
     else
-        echo "not denied"
+        echo "not blocked"
     fi
 
     echo -n "Registry:  "
@@ -301,7 +476,9 @@ status_ip() {
     echo -e "${GREEN}IP is not blocked anywhere${NC}"
 }
 
-# --- Main actions ---
+# ============================================================
+# Main actions
+# ============================================================
 
 block_ip() {
     local ip="$1"
@@ -357,8 +534,14 @@ main() {
                 echo "No IPs currently blocked"
             fi
             ;;
-        --install-nginx-include)
-            ensure_nginx_include_installed
+        --install-nginx)
+            install_nginx_blocking
+            ;;
+        --migrate)
+            migrate_nginx
+            ;;
+        --version)
+            echo "$SCRIPT_VERSION"
             ;;
         --help|-h)
             usage

@@ -32,13 +32,19 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Server bulk actions (must be before resource route)
+    Route::post('/servers/bulk/update-script', [ServerController::class, 'bulkUpdateScript'])->name('servers.bulk-update-script');
+    Route::post('/servers/bulk/test-connection', [ServerController::class, 'bulkTestConnection'])->name('servers.bulk-test-connection');
+    Route::post('/servers/bulk/delete', [ServerController::class, 'bulkDelete'])->name('servers.bulk-delete');
+    Route::post('/servers/generate-key-preview', [ServerController::class, 'generateKeyPreview'])->name('servers.generate-key-preview');
+
     // Servers
     Route::resource('servers', ServerController::class);
-    Route::post('/servers/generate-key-preview', [ServerController::class, 'generateKeyPreview'])->name('servers.generate-key-preview');
     Route::post('/servers/{server}/test', [ServerController::class, 'testConnection'])->name('servers.test');
     Route::post('/servers/{server}/check-script', [ServerController::class, 'checkScript'])->name('servers.check-script');
     Route::post('/servers/{server}/install-script', [ServerController::class, 'installScript'])->name('servers.install-script');
     Route::post('/servers/{server}/sync', [ServerController::class, 'sync'])->name('servers.sync');
+    Route::post('/servers/{server}/update-script', [ServerController::class, 'updateScript'])->name('servers.update-script');
     Route::post('/servers/{server}/generate-key', [ServerController::class, 'generateKey'])->name('servers.generate-key');
     Route::get('/servers/{server}/public-key', [ServerController::class, 'publicKey'])->name('servers.public-key');
 

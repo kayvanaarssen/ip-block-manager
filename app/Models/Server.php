@@ -11,7 +11,8 @@ class Server extends Model
 
     protected $fillable = [
         'name', 'host', 'port', 'ssh_user', 'ssh_private_key',
-        'ssh_public_key', 'ssh_fingerprint', 'script_installed', 'is_active',
+        'ssh_public_key', 'ssh_fingerprint', 'script_installed', 'script_version',
+        'is_active', 'last_connected_at',
     ];
 
     protected $casts = [

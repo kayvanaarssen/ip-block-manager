@@ -14,6 +14,7 @@ class SshService
     private const SCRIPT_NAME = 'blockip.sh';
     private const CONNECT_TIMEOUT = 10;
     private const EXEC_TIMEOUT = 30;
+    public const CURRENT_SCRIPT_VERSION = '2.0.0';
 
     private function getScriptPath(Server $server): string
     {
@@ -122,15 +123,59 @@ class SshService
         $sftp->chmod(0755, $scriptPath);
         $sftp->disconnect();
 
-        // Verify
-        $result = $this->execute($server, $scriptPath . ' --help');
+        // Verify and get version
+        $result = $this->execute($server, "sudo {$scriptPath} --help");
+
+        $version = null;
+        if ($result['success']) {
+            $versionResult = $this->execute($server, "sudo {$scriptPath} --version 2>/dev/null || echo 'unknown'");
+            $v = trim($versionResult['output']);
+            $version = ($v !== 'unknown') ? $v : null;
+        }
 
         $server->update([
             'script_installed' => $result['success'],
+            'script_version' => $version,
             'last_connected_at' => now(),
         ]);
 
         return $result['success'];
+    }
+
+    public function getScriptVersion(Server $server): ?string
+    {
+        $scriptPath = $this->getScriptPath($server);
+        $result = $this->execute($server, "sudo {$scriptPath} --version 2>/dev/null || echo 'unknown'");
+        $version = trim($result['output']);
+        return $version !== 'unknown' ? $version : null;
+    }
+
+    public function needsUpdate(Server $server): bool
+    {
+        $version = $this->getScriptVersion($server);
+        return $version === null || version_compare($version, self::CURRENT_SCRIPT_VERSION, '<');
+    }
+
+    public function migrateNginx(Server $server): array
+    {
+        $scriptPath = $this->getScriptPath($server);
+        return $this->execute($server, "sudo {$scriptPath} --migrate");
+    }
+
+    public function updateAndMigrate(Server $server): array
+    {
+        // Upload latest script
+        $this->installScript($server);
+
+        // Run migration to switch from deny 403 to geo 444
+        $result = $this->migrateNginx($server);
+
+        $server->update([
+            'script_version' => self::CURRENT_SCRIPT_VERSION,
+            'last_connected_at' => now(),
+        ]);
+
+        return $result;
     }
 
     public function generateKeyPair(Server $server): array
