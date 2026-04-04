@@ -14,7 +14,9 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'stats' => [
                 'totalServers' => Server::where('is_active', true)->count(),
-                'totalBlockedIps' => BlockedIp::whereHas('servers', fn ($q) => $q->wherePivot('status', 'blocked'))->count(),
+                'activelyBlockedIps' => BlockedIp::whereHas('servers', fn ($q) => $q->wherePivot('status', 'blocked'))->count(),
+                'pendingIps' => BlockedIp::whereHas('servers', fn ($q) => $q->wherePivotIn('status', ['pending', 'blocking']))->count(),
+                'failedIps' => BlockedIp::whereHas('servers', fn ($q) => $q->wherePivot('status', 'failed'))->count(),
                 'totalBlocks' => BlockedIp::count(),
                 'recentActivity' => AuditLog::with('user')
                     ->latest()

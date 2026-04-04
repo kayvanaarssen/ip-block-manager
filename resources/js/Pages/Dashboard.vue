@@ -30,17 +30,26 @@ const actionLabels = {
         </div>
 
         <!-- Stats cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
                 <div class="text-sm text-gray-500 dark:text-gray-400">Active Servers</div>
                 <div class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ stats.totalServers }}</div>
             </div>
             <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
                 <div class="text-sm text-gray-500 dark:text-gray-400">Blocked IPs</div>
-                <div class="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{{ stats.totalBlockedIps }}</div>
+                <div class="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{{ stats.activelyBlockedIps }}</div>
             </div>
-            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 col-span-2 lg:col-span-1">
-                <div class="text-sm text-gray-500 dark:text-gray-400">Total Block Records</div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                <div class="text-sm text-gray-500 dark:text-gray-400">Pending / Failed</div>
+                <div class="text-3xl font-bold mt-1">
+                    <span v-if="stats.pendingIps" class="text-yellow-600 dark:text-yellow-400">{{ stats.pendingIps }}</span>
+                    <span v-if="stats.pendingIps && stats.failedIps" class="text-gray-400 dark:text-gray-500 text-lg mx-1">/</span>
+                    <span v-if="stats.failedIps" class="text-red-600 dark:text-red-400">{{ stats.failedIps }}</span>
+                    <span v-if="!stats.pendingIps && !stats.failedIps" class="text-green-600 dark:text-green-400">0</span>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                <div class="text-sm text-gray-500 dark:text-gray-400">Total Records</div>
                 <div class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ stats.totalBlocks }}</div>
             </div>
         </div>
