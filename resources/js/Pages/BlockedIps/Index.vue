@@ -219,10 +219,15 @@ const getUnattachedServers = (ip) => {
                                 <td class="px-5 py-3 text-gray-500 dark:text-gray-400 max-w-[200px] truncate hidden sm:table-cell">{{ ip.reason || '-' }}</td>
                                 <td class="px-5 py-3">
                                     <div class="flex flex-wrap gap-1">
-                                        <span v-for="s in ip.servers" :key="s.id" :class="statusColors[s.status]"
+                                        <span v-for="s in ip.servers.slice(0, 2)" :key="s.id" :class="statusColors[s.status]"
                                             class="text-xs font-medium px-2 py-0.5 rounded-full" :title="s.error_message || s.status">
                                             {{ s.name }}
                                         </span>
+                                        <Link v-if="ip.servers.length > 2" :href="route('blocked-ips.show', ip.id)"
+                                            class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                            :title="`${ip.servers.length - 2} more server(s)`">
+                                            +{{ ip.servers.length - 2 }}
+                                        </Link>
                                         <span v-if="!ip.servers?.length" class="text-xs text-gray-400 dark:text-gray-500 italic">No servers</span>
                                     </div>
                                 </td>

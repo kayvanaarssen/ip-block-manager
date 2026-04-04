@@ -175,10 +175,10 @@ const bulkDelete = () => {
                                 <input type="checkbox" :value="server.id" v-model="selected"
                                     class="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500" />
                             </td>
-                            <td class="px-2 sm:px-4 py-2 sm:py-3">
-                                <Link :href="route('servers.edit', server.id)" class="group">
-                                    <div class="font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ server.name }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ server.ssh_user }}@{{ server.host }}:{{ server.port }}</div>
+                            <td class="px-2 sm:px-4 py-2 sm:py-3 max-w-[140px] sm:max-w-none">
+                                <Link :href="route('servers.edit', server.id)" class="group block min-w-0">
+                                    <div class="font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">{{ server.name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">{{ server.ssh_user }}@{{ server.host }}:{{ server.port }}</div>
                                 </Link>
                             </td>
                             <td class="px-2 sm:px-4 py-2 sm:py-3 hidden sm:table-cell">
