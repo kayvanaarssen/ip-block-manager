@@ -128,9 +128,7 @@ class SshService
 
         $version = null;
         if ($result['success']) {
-            $versionResult = $this->execute($server, "sudo {$scriptPath} --version 2>/dev/null || echo 'unknown'");
-            $v = trim($versionResult['output']);
-            $version = ($v !== 'unknown') ? $v : null;
+            $version = $this->getScriptVersion($server);
         }
 
         $server->update([
@@ -145,9 +143,16 @@ class SshService
     public function getScriptVersion(Server $server): ?string
     {
         $scriptPath = $this->getScriptPath($server);
-        $result = $this->execute($server, "sudo {$scriptPath} --version 2>/dev/null || echo 'unknown'");
+        // Use grep to extract version from the script file itself — reliable even if --version isn't supported
+        $result = $this->execute($server, "sudo grep -m1 '^SCRIPT_VERSION=' {$scriptPath} 2>/dev/null | cut -d'\"' -f2");
         $version = trim($result['output']);
-        return $version !== 'unknown' ? $version : null;
+
+        // Validate it looks like a version string (e.g. "2.0.0")
+        if ($version && preg_match('/^\d+\.\d+\.\d+$/', $version)) {
+            return $version;
+        }
+
+        return null;
     }
 
     public function needsUpdate(Server $server): bool

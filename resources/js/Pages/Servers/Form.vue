@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { Head, useForm, router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
-const props = defineProps({ server: { type: Object, default: null } })
+const props = defineProps({ server: { type: Object, default: null }, currentScriptVersion: { type: String, default: null } })
 const isEdit = !!props.server
 
 const form = useForm({
@@ -23,6 +23,7 @@ const keyGenerated = ref(false)
 const testing = ref(false)
 const checking = ref(false)
 const installing = ref(false)
+const updating = ref(false)
 
 const submit = () => {
     if (isEdit) {
@@ -117,6 +118,14 @@ const installScript = () => {
     })
 }
 
+const updateScript = () => {
+    updating.value = true
+    router.post(route('servers.update-script', props.server.id), {}, {
+        preserveScroll: true,
+        onFinish: () => updating.value = false,
+    })
+}
+
 const copyToClipboard = async (text, label) => {
     await navigator.clipboard.writeText(text)
     copied.value = label
@@ -160,13 +169,26 @@ if (isEdit && props.server?.has_public_key) {
                     </div>
 
                     <!-- Script status -->
-                    <div class="flex items-center gap-3 p-3 rounded-xl" :class="server.script_installed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'">
-                        <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="server.script_installed ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-900/40'">
-                            <svg class="w-5 h-5" :class="server.script_installed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <div class="flex items-center gap-3 p-3 rounded-xl"
+                        :class="server.script_installed ? (server.needs_update ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-green-50 dark:bg-green-900/20') : 'bg-red-50 dark:bg-red-900/20'">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                            :class="server.script_installed ? (server.needs_update ? 'bg-yellow-100 dark:bg-yellow-900/40' : 'bg-green-100 dark:bg-green-900/40') : 'bg-red-100 dark:bg-red-900/40'">
+                            <svg class="w-5 h-5"
+                                :class="server.script_installed ? (server.needs_update ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400') : 'text-red-600 dark:text-red-400'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                         </div>
                         <div>
-                            <div class="text-sm font-semibold" :class="server.script_installed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'">blockip.sh</div>
-                            <div class="text-xs" :class="server.script_installed ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'">{{ server.script_installed ? 'Installed' : 'Not installed' }}</div>
+                            <div class="text-sm font-semibold"
+                                :class="server.script_installed ? (server.needs_update ? 'text-yellow-700 dark:text-yellow-400' : 'text-green-700 dark:text-green-400') : 'text-red-700 dark:text-red-400'">
+                                blockip.sh
+                                <span v-if="server.script_version" class="font-normal">v{{ server.script_version }}</span>
+                            </div>
+                            <div class="text-xs"
+                                :class="server.script_installed ? (server.needs_update ? 'text-yellow-600 dark:text-yellow-500' : 'text-green-600 dark:text-green-500') : 'text-red-600 dark:text-red-500'">
+                                <template v-if="!server.script_installed">Not installed</template>
+                                <template v-else-if="server.needs_update">Update available (v{{ currentScriptVersion }})</template>
+                                <template v-else>Up to date</template>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -192,6 +214,13 @@ if (isEdit && props.server?.has_public_key) {
                         <svg v-if="!installing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         {{ installing ? 'Installing...' : 'Install Script' }}
+                    </button>
+
+                    <button v-if="server.script_installed && server.needs_update" @click="updateScript" :disabled="updating"
+                        class="flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
+                        <svg v-if="!updating" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        {{ updating ? 'Updating & Migrating...' : 'Update Script to v' + currentScriptVersion }}
                     </button>
                 </div>
             </div>
