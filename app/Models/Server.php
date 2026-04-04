@@ -11,18 +11,19 @@ class Server extends Model
 
     protected $fillable = [
         'name', 'host', 'port', 'ssh_user', 'ssh_private_key',
-        'ssh_fingerprint', 'script_installed', 'is_active',
+        'ssh_public_key', 'ssh_fingerprint', 'script_installed', 'is_active',
     ];
 
     protected $casts = [
         'ssh_private_key' => 'encrypted',
+        'ssh_public_key' => 'encrypted',
         'is_active' => 'boolean',
         'script_installed' => 'boolean',
         'port' => 'integer',
         'last_connected_at' => 'datetime',
     ];
 
-    protected $hidden = ['ssh_private_key'];
+    protected $hidden = ['ssh_private_key', 'ssh_public_key'];
 
     public function blockedIps()
     {

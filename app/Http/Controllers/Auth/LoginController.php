@@ -24,7 +24,7 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            $audit->log('login', Auth::user(), ['method' => 'password']);
+            $audit->log('login');
             return redirect()->intended(route('dashboard'));
         }
 

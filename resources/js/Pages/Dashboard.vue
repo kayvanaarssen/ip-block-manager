@@ -12,8 +12,13 @@ const actionLabels = {
     update_server: 'Updated server',
     login: 'Logged in',
     logout: 'Logged out',
-    register_passkey: 'Registered passkey',
     install_script: 'Installed script',
+    create_user: 'Created user',
+    update_user: 'Updated user',
+    delete_user: 'Deleted user',
+    update_profile: 'Updated profile',
+    change_password: 'Changed password',
+    generate_ssh_key: 'Generated SSH key',
 }
 </script>
 

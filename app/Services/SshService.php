@@ -112,6 +112,54 @@ class SshService
         return $result['success'];
     }
 
+    public function generateKeyPair(Server $server): array
+    {
+        $rsa = \phpseclib3\Crypt\RSA::createKey(4096);
+
+        $privateKey = $rsa->toString('OpenSSH');
+        $publicKey = $rsa->getPublicKey()->toString('OpenSSH', ['comment' => 'IPBlockManager-' . $server->name]);
+
+        $server->update([
+            'ssh_private_key' => $privateKey,
+            'ssh_public_key' => $publicKey,
+        ]);
+
+        return [
+            'private_key' => $privateKey,
+            'public_key' => $publicKey,
+        ];
+    }
+
+    public function generateKeyPairPreview(): array
+    {
+        $rsa = \phpseclib3\Crypt\RSA::createKey(4096);
+
+        $privateKey = $rsa->toString('OpenSSH');
+        $publicKey = $rsa->getPublicKey()->toString('OpenSSH', ['comment' => 'IPBlockManager']);
+
+        return [
+            'private_key' => $privateKey,
+            'public_key' => $publicKey,
+        ];
+    }
+
+    public function getAuthorizedKeysCommand(Server $server): string
+    {
+        if (!$server->ssh_public_key) {
+            return '';
+        }
+
+        return $this->getAuthorizedKeysCommandFromKey($server->ssh_public_key);
+    }
+
+    public function getAuthorizedKeysCommandFromKey(string $publicKey): string
+    {
+        return sprintf(
+            'mkdir -p ~/.ssh && echo %s >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys',
+            escapeshellarg($publicKey)
+        );
+    }
+
     public function testConnection(Server $server): array
     {
         try {

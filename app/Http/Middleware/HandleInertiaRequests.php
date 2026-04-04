@@ -42,6 +42,10 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'theme_preference' => $request->user()->theme_preference,
+                    'passkeys' => fn () => $request->user()->passkeys()
+                        ->get()
+                        ->map(fn ($key) => $key->only(['id', 'name', 'last_used_at'])),
                 ] : null,
             ],
             'flash' => [

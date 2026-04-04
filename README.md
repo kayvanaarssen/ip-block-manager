@@ -16,26 +16,36 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 - **Reason tracking** - document why each IP was blocked
 
 ### Server Management
-- Add servers with SSH connection details (host, port, user, private key)
+- Add servers with SSH connection details (host, port, user)
+- **SSH key pair generation** - generate a unique RSA 4096-bit key pair per server directly in the app
+- **One-click authorized_keys setup** - copy the command to add the public key to a server's `~/.ssh/authorized_keys`
+- **Manual key upload** - alternatively paste or upload an existing SSH private key
 - **SSH keys encrypted at rest** using Laravel's encryption (AES-256-CBC via APP_KEY)
 - **Test connection** to verify SSH access before blocking
 - **Auto-deploy** the `blockip.sh` script to servers that don't have it yet
 - Per-server status indicators (active, script installed, last connected, blocked IP count)
 
 ### Security
-- **Passkey (WebAuthn) authentication** - phishing-resistant, biometric login via fingerprint/Face ID
+- **Passkey (WebAuthn) authentication** via [spatie/laravel-passkeys](https://github.com/spatie/laravel-passkeys) - phishing-resistant, biometric login via fingerprint/Face ID
+- **Passkey management** - register multiple passkeys, view last used timestamps, delete individual passkeys from the slide-over panel
 - Password fallback for initial setup
 - Rate limiting on all auth endpoints (5 requests/minute)
 - CSRF protection automatic via Inertia.js session-based auth
 - SSH command injection prevention with `escapeshellarg()` on all user inputs
-- Full **audit trail** of every action (block, unblock, login, server changes)
+- Full **audit trail** of every action (block, unblock, login, server changes, user management)
+
+### User Management
+- **Admin user CRUD** - create, edit, and delete user accounts
+- **Profile settings** - update name, email, and password
+- **Theme preference** - choose between light, dark, or auto (system) theme with persistent storage
 
 ### UI/UX
 - **Mobile-first** responsive design with bottom navigation bar
-- **Dark mode** with toggle and localStorage persistence
-- Clean, modern interface with Tailwind CSS
+- **Dark mode** with light/dark/auto toggle and database-persisted preference
+- Clean, modern interface with Tailwind CSS 4
 - Flash message toasts with auto-dismiss
-- Collapsible sidebar navigation
+- Collapsible sidebar navigation with admin section
+- Passkey management slide-over panel accessible from the top bar
 
 ---
 
@@ -49,7 +59,7 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 | Styling     | Tailwind CSS 4                                                   |
 | Database    | SQLite with WAL mode                                             |
 | SSH         | phpseclib v3 (pure PHP, no ext-ssh2 required)                    |
-| Auth        | laragear/webauthn v5 + @simplewebauthn/browser                   |
+| Auth        | spatie/laravel-passkeys v1.6 + @simplewebauthn/browser           |
 | Queue       | Laravel database queue driver                                    |
 | Routing     | Ziggy (Laravel named routes in JavaScript)                       |
 | Build       | Vite 8 + @vitejs/plugin-vue                                     |
@@ -58,7 +68,7 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 
 ## How It Works
 
-1. **You add servers** with their SSH credentials (host, port, user, private key)
+1. **You add servers** with their SSH credentials (host, port, user, and either generate a key pair or upload a private key)
 2. **You enter an IP** to block and select which servers to target (or all)
 3. **The app dispatches queue jobs** - one per server, running in parallel
 4. **Each job SSHs into the server** and runs `blockip.sh --block <ip>` which:
@@ -79,25 +89,26 @@ If the `blockip.sh` script isn't installed on a server yet, it's automatically u
 app/
 ├── Http/Controllers/
 │   ├── Auth/
-│   │   ├── LoginController.php              # Password login/logout
-│   │   ├── WebAuthnLoginController.php      # Passkey authentication
-│   │   └── WebAuthnRegisterController.php   # Passkey registration
+│   │   └── LoginController.php              # Password login/logout
 │   ├── DashboardController.php              # Stats & recent activity
-│   ├── ServerController.php                 # CRUD + test/install/sync
+│   ├── ServerController.php                 # CRUD + test/install/sync/key generation
 │   ├── BlockedIpController.php              # Block/unblock + status polling
-│   └── AuditLogController.php               # Audit log viewer
+│   ├── AuditLogController.php               # Audit log viewer
+│   ├── PasskeyController.php                # Passkey registration & management
+│   ├── ProfileController.php                # Profile, password, theme settings
+│   └── UserController.php                   # Admin user CRUD
 ├── Jobs/
 │   ├── ExecuteSshBlockJob.php               # Async SSH block (3 retries)
 │   ├── ExecuteSshUnblockJob.php             # Async SSH unblock (3 retries)
 │   └── InstallScriptJob.php                 # Auto-deploy blockip.sh
 ├── Models/
-│   ├── User.php                             # + WebAuthn trait
-│   ├── Server.php                           # Encrypted SSH key cast
+│   ├── User.php                             # + Spatie passkeys support
+│   ├── Server.php                           # Encrypted SSH key pair cast
 │   ├── BlockedIp.php                        # IP records
 │   ├── AuditLog.php                         # Action audit trail
 │   └── SshTaskLog.php                       # SSH execution logs
 ├── Services/
-│   ├── SshService.php                       # SSH/SFTP via phpseclib
+│   ├── SshService.php                       # SSH/SFTP via phpseclib + key generation
 │   ├── IpBlockService.php                   # Orchestrates block/unblock
 │   └── AuditService.php                     # Logs all actions
 └── Rules/
@@ -105,17 +116,22 @@ app/
 
 resources/js/
 ├── Layouts/
-│   └── AppLayout.vue                        # Sidebar, topbar, mobile nav, toasts
+│   └── AppLayout.vue                        # Sidebar, topbar, passkey panel, mobile nav, toasts
 └── Pages/
     ├── Auth/Login.vue                       # Passkey + password login
     ├── Dashboard.vue                        # Stats cards + activity feed
     ├── Servers/
     │   ├── Index.vue                        # Server grid
-    │   └── Form.vue                         # Create/edit server
+    │   └── Form.vue                         # Create/edit with SSH key generation
     ├── BlockedIps/
     │   ├── Index.vue                        # Blocked IP table
     │   ├── Create.vue                       # Block IP form + server selector
     │   └── Show.vue                         # Per-server status + unblock
+    ├── Profile/
+    │   └── Edit.vue                         # Profile, password, theme settings
+    ├── Users/
+    │   ├── Index.vue                        # User management table
+    │   └── Form.vue                         # Create/edit user
     └── AuditLog/
         └── Index.vue                        # Paginated audit log
 ```
@@ -124,9 +140,9 @@ resources/js/
 
 | Table                | Purpose                                          |
 |----------------------|--------------------------------------------------|
-| `users`              | Admin accounts with WebAuthn support              |
-| `webauthn_credentials` | Passkey credentials (laragear/webauthn)         |
-| `servers`            | SSH connection details (key encrypted at rest)    |
+| `users`              | Admin accounts with theme preference              |
+| `passkeys`           | Passkey credentials (spatie/laravel-passkeys)     |
+| `servers`            | SSH connection details (key pair encrypted)        |
 | `blocked_ips`        | Central record of all blocked IPs                 |
 | `blocked_ip_server`  | Pivot: per-server block status & timestamps       |
 | `audit_logs`         | Full action audit trail with metadata             |
@@ -173,15 +189,17 @@ php artisan queue:work     # Process SSH jobs
 
 **Default login:** `admin@ipblock.local` / `password`
 
-Register a passkey immediately after your first login for secure biometric authentication.
+Register a passkey immediately after your first login for secure biometric authentication. You can manage passkeys from the key icon in the top bar.
 
-### WebAuthn / Passkey Setup
+### Passkey Setup
 
-For passkeys to work, add these to your `.env`:
+Passkeys work out of the box with `spatie/laravel-passkeys`. Configure the relying party in `config/passkeys.php` if needed:
 
-```env
-WEBAUTHN_ID=your-domain.com        # Your exact domain (no protocol)
-WEBAUTHN_NAME="IP Block Manager"   # Display name in passkey prompts
+```php
+'relying_party' => [
+    'name' => env('APP_NAME', 'IP Block Manager'),
+    'id' => parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST),
+],
 ```
 
 For local development, `localhost` works by default.
@@ -209,19 +227,19 @@ DB_CONNECTION=sqlite
 QUEUE_CONNECTION=database
 
 SESSION_ENCRYPT=true
-
-WEBAUTHN_ID=your-domain.com
-WEBAUTHN_NAME="IP Block Manager"
 ```
 
 ### 3. Deploy script
 
-Paste this into Ploi's deployment settings:
+Use the included `deploy.sh` or paste this into Ploi's deployment settings:
 
 ```bash
 cd {SITE_DIRECTORY}
 
 git pull origin main
+
+# Ensure SQLite database file exists
+touch database/database.sqlite
 
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
@@ -270,10 +288,13 @@ This creates the default admin account. Log in and register a passkey.
 ### Adding a Server
 
 1. Go to **Servers** > **Add Server**
-2. Enter the server name, host/IP, SSH port, user (usually `root`), and paste the SSH private key
-3. Click **Add Server**
-4. Use **Test Connection** to verify SSH access
-5. Use **Install Script** to deploy `blockip.sh` (or it auto-installs on first block)
+2. Enter the server name, host/IP, SSH port, and user (usually `root`)
+3. Choose your SSH key method:
+   - **Generate Key Pair** - creates a unique RSA 4096-bit key pair for this server. Copy the one-line command to add the public key to the server's `~/.ssh/authorized_keys`
+   - **Upload Manually** - paste an existing SSH private key or upload a key file
+4. Click **Add Server** / **Update Server**
+5. Use **Test Connection** to verify SSH access
+6. Use **Install Script** to deploy `blockip.sh` (or it auto-installs on first block)
 
 ### Blocking an IP
 
@@ -288,6 +309,18 @@ This creates the default admin account. Log in and register a passkey.
 
 - **From all servers**: Click **Unblock All** on the IP detail page or in the list
 - **From specific servers**: On the IP detail page, click **Unblock** next to individual servers
+
+### Managing Users
+
+1. Go to **Users** in the admin sidebar section
+2. Create, edit, or delete user accounts
+3. Each user can manage their own profile, password, and theme preference
+
+### Profile & Theme
+
+1. Click your avatar/name in the sidebar or top bar dropdown > **Profile**
+2. Update your name, email, or password
+3. Choose your theme preference: Light, Dark, or Auto (follows system)
 
 ---
 

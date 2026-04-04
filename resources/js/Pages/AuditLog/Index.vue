@@ -12,8 +12,13 @@ const actionLabels = {
     delete_server: { label: 'Delete Server', color: 'text-red-600 dark:text-red-400' },
     login: { label: 'Login', color: 'text-gray-600 dark:text-gray-400' },
     logout: { label: 'Logout', color: 'text-gray-600 dark:text-gray-400' },
-    register_passkey: { label: 'Register Passkey', color: 'text-purple-600 dark:text-purple-400' },
     install_script: { label: 'Install Script', color: 'text-blue-600 dark:text-blue-400' },
+    create_user: { label: 'Create User', color: 'text-blue-600 dark:text-blue-400' },
+    update_user: { label: 'Update User', color: 'text-blue-600 dark:text-blue-400' },
+    delete_user: { label: 'Delete User', color: 'text-red-600 dark:text-red-400' },
+    update_profile: { label: 'Update Profile', color: 'text-blue-600 dark:text-blue-400' },
+    change_password: { label: 'Change Password', color: 'text-yellow-600 dark:text-yellow-400' },
+    generate_ssh_key: { label: 'Generate SSH Key', color: 'text-blue-600 dark:text-blue-400' },
 }
 </script>
 

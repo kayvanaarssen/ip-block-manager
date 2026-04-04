@@ -62,6 +62,7 @@ class ServerController extends Controller
                 'script_installed' => $server->script_installed,
                 'last_connected_at' => $server->last_connected_at?->diffForHumans(),
                 'has_key' => (bool) $server->ssh_private_key,
+                'has_public_key' => (bool) $server->ssh_public_key,
             ],
         ]);
     }
@@ -99,6 +100,42 @@ class ServerController extends Controller
         InstallScriptJob::dispatch($server);
         $audit->log('install_script', $server, ['name' => $server->name]);
         return back()->with('success', "Script installation queued for {$server->name}.");
+    }
+
+    public function generateKey(Server $server, SshService $sshService, AuditService $audit)
+    {
+        $result = $sshService->generateKeyPair($server);
+        $audit->log('generate_ssh_key', $server, ['name' => $server->name]);
+
+        return response()->json([
+            'public_key' => $result['public_key'],
+            'command' => $sshService->getAuthorizedKeysCommand($server),
+        ]);
+    }
+
+    public function generateKeyPreview(SshService $sshService)
+    {
+        $result = $sshService->generateKeyPairPreview();
+
+        return response()->json([
+            'private_key' => $result['private_key'],
+            'public_key' => $result['public_key'],
+            'command' => $sshService->getAuthorizedKeysCommandFromKey($result['public_key']),
+        ]);
+    }
+
+    public function publicKey(Server $server)
+    {
+        if (!$server->ssh_public_key) {
+            return response()->json(['public_key' => null, 'command' => null]);
+        }
+
+        $sshService = app(SshService::class);
+
+        return response()->json([
+            'public_key' => $server->ssh_public_key,
+            'command' => $sshService->getAuthorizedKeysCommand($server),
+        ]);
     }
 
     public function sync(Server $server, SshService $sshService)
