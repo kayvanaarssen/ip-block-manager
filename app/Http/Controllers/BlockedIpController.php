@@ -27,13 +27,13 @@ class BlockedIpController extends Controller
         // Filter by status
         if ($status = request('status')) {
             if ($status === 'blocked') {
-                $query->whereHas('servers', fn ($q) => $q->wherePivot('status', 'blocked'));
+                $query->whereHas('servers', fn ($q) => $q->where('blocked_ip_server.status', 'blocked'));
             } elseif ($status === 'unblocked') {
-                $query->whereHas('servers', fn ($q) => $q->wherePivot('status', 'unblocked'));
+                $query->whereHas('servers', fn ($q) => $q->where('blocked_ip_server.status', 'unblocked'));
             } elseif ($status === 'failed') {
-                $query->whereHas('servers', fn ($q) => $q->wherePivot('status', 'failed'));
+                $query->whereHas('servers', fn ($q) => $q->where('blocked_ip_server.status', 'failed'));
             } elseif ($status === 'pending') {
-                $query->whereHas('servers', fn ($q) => $q->wherePivotIn('status', ['pending', 'blocking', 'unblocking']));
+                $query->whereHas('servers', fn ($q) => $q->whereIn('blocked_ip_server.status', ['pending', 'blocking', 'unblocking']));
             }
         }
 
