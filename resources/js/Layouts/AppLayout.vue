@@ -44,9 +44,9 @@ const logout = () => router.post(route('logout'))
             <div class="fixed inset-0 bg-black/50"></div>
         </div>
 
-        <!-- Sidebar -->
-        <aside :class="[showSidebar ? 'translate-x-0' : '-translate-x-full', 'lg:translate-x-0']"
-            class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-transform duration-200 ease-in-out lg:z-0 flex flex-col">
+        <!-- Sidebar: slides from right on mobile, fixed left on desktop -->
+        <aside :class="[showSidebar ? 'translate-x-0' : 'translate-x-full lg:translate-x-0']"
+            class="fixed inset-y-0 right-0 lg:right-auto lg:left-0 z-50 w-64 bg-white dark:bg-gray-900 border-l lg:border-l-0 lg:border-r border-gray-200 dark:border-gray-800 transition-transform duration-200 ease-in-out lg:z-0 flex flex-col">
             <div class="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-800">
                 <Link :href="route('dashboard')" class="flex items-center gap-2.5 min-w-0">
                     <!-- Custom logo -->
