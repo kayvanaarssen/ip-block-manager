@@ -5,9 +5,9 @@
 
 cd {SITE_DIRECTORY}
 
-# Reset local file changes (chmod modifies blockip.sh permissions)
-git checkout -- .
-git pull origin main
+# Reset to match remote exactly (handles force pushes and local changes)
+git fetch origin main
+git reset --hard origin/main
 
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
