@@ -40,6 +40,17 @@ class StatusCommand
 
         $msg = "IP: {$blockedIp->ip_address}\n";
 
+        if ($blockedIp->geo_data) {
+            $geo = $blockedIp->geo_data;
+            $location = array_filter([$geo['city'] ?? null, $geo['country'] ?? null]);
+            if ($location) {
+                $msg .= "Location: ".implode(', ', $location)."\n";
+            }
+            if ($geo['org'] ?? null) {
+                $msg .= "Org: {$geo['org']}\n";
+            }
+        }
+
         if ($blockedIp->reason) {
             $msg .= "Reason: {$blockedIp->reason}\n";
         }

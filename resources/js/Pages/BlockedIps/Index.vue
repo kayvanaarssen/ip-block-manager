@@ -202,8 +202,10 @@ const getUnattachedServers = (ip) => {
                         <tr>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">IP Address</th>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">Reason</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Location</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Organization</th>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Servers</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">By</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">By</th>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">When</th>
                             <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -217,6 +219,14 @@ const getUnattachedServers = (ip) => {
                                     </Link>
                                 </td>
                                 <td class="px-5 py-3 text-gray-500 dark:text-gray-400 max-w-[200px] truncate hidden sm:table-cell">{{ ip.reason || '-' }}</td>
+                                <td class="px-5 py-3 hidden md:table-cell">
+                                    <span v-if="ip.country" class="text-sm text-gray-700 dark:text-gray-300" :title="ip.country">{{ ip.country_code || ip.country }}</span>
+                                    <span v-else class="text-gray-400 dark:text-gray-500">-</span>
+                                </td>
+                                <td class="px-5 py-3 hidden lg:table-cell">
+                                    <span v-if="ip.org" class="text-sm text-gray-500 dark:text-gray-400 max-w-[180px] truncate block" :title="ip.org">{{ ip.org }}</span>
+                                    <span v-else class="text-gray-400 dark:text-gray-500">-</span>
+                                </td>
                                 <td class="px-5 py-3">
                                     <div class="flex flex-wrap gap-1">
                                         <span v-for="s in ip.servers.slice(0, 2)" :key="s.id" :class="statusColors[s.status]"
@@ -231,7 +241,7 @@ const getUnattachedServers = (ip) => {
                                         <span v-if="!ip.servers?.length" class="text-xs text-gray-400 dark:text-gray-500 italic">No servers</span>
                                     </div>
                                 </td>
-                                <td class="px-5 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell">{{ ip.blocked_by }}</td>
+                                <td class="px-5 py-3 text-gray-500 dark:text-gray-400 hidden xl:table-cell">{{ ip.blocked_by }}</td>
                                 <td class="px-5 py-3 text-gray-400 dark:text-gray-500 text-xs hidden lg:table-cell">{{ ip.created_at }}</td>
                                 <td class="px-5 py-3 text-right">
                                     <!-- Desktop: inline buttons -->
@@ -255,7 +265,7 @@ const getUnattachedServers = (ip) => {
                             </tr>
                             <!-- Expanded per-server row -->
                             <tr v-if="expandedRow === ip.id">
-                                <td colspan="6" class="bg-gray-50 dark:bg-gray-800/30 px-5 py-3">
+                                <td colspan="8" class="bg-gray-50 dark:bg-gray-800/30 px-5 py-3">
                                     <div class="space-y-2">
                                         <!-- Attached servers -->
                                         <div v-for="server in ip.servers" :key="server.id"
@@ -299,7 +309,7 @@ const getUnattachedServers = (ip) => {
                             </tr>
                         </template>
                         <tr v-if="!blockedIps.data?.length">
-                            <td colspan="6" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">No blocked IPs</td>
+                            <td colspan="8" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">No blocked IPs</td>
                         </tr>
                     </tbody>
                 </table>

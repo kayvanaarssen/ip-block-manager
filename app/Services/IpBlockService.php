@@ -14,6 +14,7 @@ class IpBlockService
 {
     public function __construct(
         private AuditService $audit,
+        private IpLookupService $ipLookup,
     ) {}
 
     public function blockOnServers(string $ip, Collection $servers, ?string $reason = null): BlockedIp
@@ -22,6 +23,7 @@ class IpBlockService
             'ip_address' => $ip,
             'reason' => $reason,
             'blocked_by' => Auth::id(),
+            'geo_data' => $this->ipLookup->lookup($ip),
         ]);
 
         foreach ($servers as $server) {

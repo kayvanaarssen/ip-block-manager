@@ -113,6 +113,7 @@ const unattachedServers = computed(() => {
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white font-mono">{{ blockedIp.ip_address }}</h1>
             </div>
 
+            <!-- IP Info & Actions -->
             <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-6">
                 <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-4">
                     <div class="min-w-0">
@@ -138,6 +139,37 @@ const unattachedServers = computed(() => {
                             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
                     </button>
+                </div>
+
+                <!-- Location info -->
+                <div v-if="blockedIp.geo_data" class="px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">IP Location</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div v-if="blockedIp.geo_data.country">
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Country</div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ blockedIp.geo_data.country }}</div>
+                        </div>
+                        <div v-if="blockedIp.geo_data.region">
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Region</div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ blockedIp.geo_data.region }}</div>
+                        </div>
+                        <div v-if="blockedIp.geo_data.city">
+                            <div class="text-xs text-gray-400 dark:text-gray-500">City</div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ blockedIp.geo_data.city }}</div>
+                        </div>
+                        <div v-if="blockedIp.geo_data.org">
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Organization</div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ blockedIp.geo_data.org }}</div>
+                        </div>
+                        <div v-if="blockedIp.geo_data.isp">
+                            <div class="text-xs text-gray-400 dark:text-gray-500">ISP</div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ blockedIp.geo_data.isp }}</div>
+                        </div>
+                        <div v-if="blockedIp.geo_data.as">
+                            <div class="text-xs text-gray-400 dark:text-gray-500">AS</div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white text-xs">{{ blockedIp.geo_data.as }}</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="divide-y divide-gray-100 dark:divide-gray-800">

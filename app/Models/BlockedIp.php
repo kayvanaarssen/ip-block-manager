@@ -9,7 +9,14 @@ class BlockedIp extends Model
 {
     use HasUlids;
 
-    protected $fillable = ['ip_address', 'reason', 'blocked_by'];
+    protected $fillable = ['ip_address', 'reason', 'blocked_by', 'geo_data'];
+
+    protected function casts(): array
+    {
+        return [
+            'geo_data' => 'array',
+        ];
+    }
 
     public function servers()
     {

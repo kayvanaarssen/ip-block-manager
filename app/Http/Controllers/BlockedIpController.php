@@ -46,6 +46,9 @@ class BlockedIpController extends Controller
                     'id' => $ip->id,
                     'ip_address' => $ip->ip_address,
                     'reason' => $ip->reason,
+                    'country' => $ip->geo_data['country'] ?? null,
+                    'country_code' => $ip->geo_data['country_code'] ?? null,
+                    'org' => $ip->geo_data['org'] ?? $ip->geo_data['isp'] ?? null,
                     'blocked_by' => $ip->blockedByUser?->name,
                     'created_at' => $ip->created_at->diffForHumans(),
                     'servers' => $ip->servers->map(fn ($s) => [
@@ -91,6 +94,7 @@ class BlockedIpController extends Controller
                 'id' => $blockedIp->id,
                 'ip_address' => $blockedIp->ip_address,
                 'reason' => $blockedIp->reason,
+                'geo_data' => $blockedIp->geo_data,
                 'blocked_by' => $blockedIp->blockedByUser?->name,
                 'created_at' => $blockedIp->created_at->format('Y-m-d H:i:s'),
                 'servers' => $blockedIp->servers->map(fn ($s) => [
