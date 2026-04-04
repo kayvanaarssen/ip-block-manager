@@ -10,6 +10,9 @@ cd {SITE_DIRECTORY}
 
 echo "🔒 IP Block Manager - Deploying..."
 
+# Reset any local file changes (e.g. chmod on blockip.sh) before pulling
+git checkout -- .
+
 # Pull latest changes
 git pull origin main
 
