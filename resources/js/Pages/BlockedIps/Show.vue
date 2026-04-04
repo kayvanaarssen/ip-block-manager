@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
 
-const props = defineProps({ blockedIp: Object })
+const props = defineProps({ blockedIp: Object, allServers: Array })
 
 const servers = ref(props.blockedIp.servers)
 let pollInterval = null
@@ -49,6 +49,29 @@ const onCancel = () => {
     confirmModal.value.show = false
 }
 
+// Block actions
+const blockServer = (server) => {
+    showConfirm({
+        title: `Block on ${server.name}`,
+        message: `This will block ${props.blockedIp.ip_address} on ${server.name} via SSH (UFW, Fail2Ban, and NGINX).`,
+        variant: 'danger',
+        confirmText: 'Block',
+        action: () => router.post(route('blocked-ips.block-server', [props.blockedIp.id, server.id])),
+    })
+}
+
+const blockAll = () => {
+    const serverIds = props.allServers.map(s => s.id)
+    showConfirm({
+        title: 'Block on all servers',
+        message: `This will block ${props.blockedIp.ip_address} on all ${props.allServers.length} active server(s) via SSH.`,
+        variant: 'danger',
+        confirmText: 'Block All',
+        action: () => router.post(route('blocked-ips.block', props.blockedIp.id), { server_ids: serverIds }),
+    })
+}
+
+// Unblock actions
 const unblockServer = (server) => {
     showConfirm({
         title: `Unblock from ${server.name}`,
@@ -68,6 +91,21 @@ const unblockAll = () => {
         action: () => router.delete(route('blocked-ips.destroy', props.blockedIp.id)),
     })
 }
+
+// Helpers
+const hasBlockableServers = computed(() => {
+    return servers.value.some(s => ['unblocked', 'failed'].includes(s.status)) ||
+        unattachedServers.value.length > 0
+})
+
+const hasUnblockableServers = computed(() => {
+    return servers.value.some(s => ['blocked', 'failed'].includes(s.status))
+})
+
+const unattachedServers = computed(() => {
+    const attachedIds = servers.value.map(s => s.id)
+    return props.allServers.filter(s => !attachedIds.includes(s.id))
+})
 </script>
 
 <template>
@@ -87,13 +125,20 @@ const unblockAll = () => {
                         <span class="text-sm text-gray-500 dark:text-gray-400">Blocked by {{ blockedIp.blocked_by }} on {{ blockedIp.created_at }}</span>
                         <p v-if="blockedIp.reason" class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ blockedIp.reason }}</p>
                     </div>
-                    <button @click="unblockAll"
-                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
-                        Unblock All
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button v-if="hasBlockableServers" @click="blockAll"
+                            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                            Block All
+                        </button>
+                        <button v-if="hasUnblockableServers" @click="unblockAll"
+                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                            Unblock All
+                        </button>
+                    </div>
                 </div>
 
                 <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <!-- Attached servers -->
                     <div v-for="server in servers" :key="server.id" class="px-5 py-4 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div>
@@ -105,11 +150,31 @@ const unblockAll = () => {
                             <span :class="statusConfig[server.status]?.color" class="text-xs font-medium px-3 py-1 rounded-full">
                                 {{ statusConfig[server.status]?.label || server.status }}
                             </span>
+                            <button v-if="['unblocked', 'failed'].includes(server.status)" @click="blockServer(server)"
+                                class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">
+                                Block
+                            </button>
                             <button v-if="['blocked', 'failed'].includes(server.status)" @click="unblockServer(server)"
                                 class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">
                                 Unblock
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Unattached servers -->
+                    <div v-for="server in unattachedServers" :key="'new-' + server.id" class="px-5 py-4 flex items-center justify-between border-dashed">
+                        <div class="flex items-center gap-3">
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ server.name }}</div>
+                            </div>
+                            <span class="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                not added
+                            </span>
+                        </div>
+                        <button @click="blockServer(server)"
+                            class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">
+                            Block
+                        </button>
                     </div>
                 </div>
             </div>

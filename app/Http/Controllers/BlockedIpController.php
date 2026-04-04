@@ -29,6 +29,7 @@ class BlockedIpController extends Controller
                         'error_message' => $s->pivot->error_message,
                     ]),
                 ]),
+            'allServers' => Server::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'filters' => request()->only(['search']),
         ]);
     }
@@ -57,6 +58,8 @@ class BlockedIpController extends Controller
 
     public function show(BlockedIp $blockedIp)
     {
+        $attachedServerIds = $blockedIp->servers->pluck('id')->toArray();
+
         return Inertia::render('BlockedIps/Show', [
             'blockedIp' => [
                 'id' => $blockedIp->id,
@@ -74,6 +77,7 @@ class BlockedIpController extends Controller
                     'unblocked_at' => $s->pivot->unblocked_at,
                 ]),
             ],
+            'allServers' => Server::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -133,5 +137,31 @@ class BlockedIpController extends Controller
         $ipBlockService->unblockFromServers($blockedIp, collect([$server]));
 
         return back()->with('success', "Unblocking {$blockedIp->ip_address} from {$server->name}...");
+    }
+
+    /**
+     * Re-block on a single server.
+     */
+    public function blockServer(BlockedIp $blockedIp, Server $server, IpBlockService $ipBlockService)
+    {
+        $ipBlockService->reblockOnServers($blockedIp, collect([$server]));
+
+        return back()->with('success', "Blocking {$blockedIp->ip_address} on {$server->name}...");
+    }
+
+    /**
+     * Block on selected servers (or all active servers).
+     */
+    public function block(BlockedIp $blockedIp, IpBlockService $ipBlockService)
+    {
+        $serverIds = request()->validate([
+            'server_ids' => ['required', 'array', 'min:1'],
+            'server_ids.*' => ['required', 'exists:servers,id'],
+        ])['server_ids'];
+
+        $servers = Server::whereIn('id', $serverIds)->get();
+        $ipBlockService->reblockOnServers($blockedIp, $servers);
+
+        return back()->with('success', "Blocking {$blockedIp->ip_address} on {$servers->count()} server(s)...");
     }
 }

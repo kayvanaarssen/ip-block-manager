@@ -1,10 +1,10 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
 
-const props = defineProps({ blockedIps: Object, filters: Object })
+const props = defineProps({ blockedIps: Object, allServers: Array, filters: Object })
 
 const expandedRow = ref(null)
 
@@ -35,6 +35,29 @@ const onCancel = () => {
     confirmModal.value.show = false
 }
 
+// Block actions
+const confirmBlockAll = (ip) => {
+    const serverIds = props.allServers.map(s => s.id)
+    showConfirm({
+        title: 'Block on all servers',
+        message: `This will block ${ip.ip_address} on all ${props.allServers.length} active server(s) via SSH.`,
+        variant: 'danger',
+        confirmText: 'Block All',
+        action: () => router.post(route('blocked-ips.block', ip.id), { server_ids: serverIds }),
+    })
+}
+
+const confirmBlockServer = (ip, server) => {
+    showConfirm({
+        title: `Block on ${server.name}`,
+        message: `This will block ${ip.ip_address} on ${server.name} via SSH (UFW, Fail2Ban, and NGINX).`,
+        variant: 'danger',
+        confirmText: 'Block',
+        action: () => router.post(route('blocked-ips.block-server', [ip.id, server.id])),
+    })
+}
+
+// Unblock actions
 const confirmUnblockAll = (ip) => {
     showConfirm({
         title: 'Unblock from all servers',
@@ -63,6 +86,21 @@ const confirmDeleteEntry = (ip) => {
         confirmText: 'Delete',
         action: () => router.delete(route('blocked-ips.force-delete', ip.id)),
     })
+}
+
+// Helpers for determining available actions
+const hasBlockableServers = (ip) => {
+    return ip.servers?.some(s => ['unblocked', 'failed'].includes(s.status)) ||
+        getUnattachedServers(ip).length > 0
+}
+
+const hasUnblockableServers = (ip) => {
+    return ip.servers?.some(s => ['blocked', 'failed'].includes(s.status))
+}
+
+const getUnattachedServers = (ip) => {
+    const attachedIds = ip.servers?.map(s => s.id) || []
+    return props.allServers.filter(s => !attachedIds.includes(s.id))
 }
 </script>
 
@@ -115,7 +153,8 @@ const confirmDeleteEntry = (ip) => {
                                         <button v-if="ip.servers?.length" @click="toggleExpand(ip.id)" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
                                             {{ expandedRow === ip.id ? 'Hide' : 'Servers' }}
                                         </button>
-                                        <button v-if="ip.servers?.length" @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
+                                        <button v-if="hasBlockableServers(ip)" @click="confirmBlockAll(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Block All</button>
+                                        <button v-if="hasUnblockableServers(ip)" @click="confirmUnblockAll(ip)" class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium">Unblock All</button>
                                         <button @click="confirmDeleteEntry(ip)" class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium">Delete</button>
                                     </div>
                                 </td>
@@ -124,6 +163,7 @@ const confirmDeleteEntry = (ip) => {
                             <tr v-if="expandedRow === ip.id">
                                 <td colspan="6" class="bg-gray-50 dark:bg-gray-800/30 px-5 py-3">
                                     <div class="space-y-2">
+                                        <!-- Attached servers -->
                                         <div v-for="server in ip.servers" :key="server.id"
                                             class="flex items-center justify-between bg-white dark:bg-gray-900 rounded-lg px-4 py-2.5 border border-gray-200 dark:border-gray-700">
                                             <div class="flex items-center gap-3">
@@ -135,9 +175,29 @@ const confirmDeleteEntry = (ip) => {
                                                     {{ server.error_message }}
                                                 </span>
                                             </div>
-                                            <button v-if="['blocked', 'failed'].includes(server.status)" @click="confirmUnblockServer(ip, server)"
-                                                class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium whitespace-nowrap">
-                                                Unblock
+                                            <div class="flex items-center gap-2">
+                                                <button v-if="['unblocked', 'failed'].includes(server.status)" @click="confirmBlockServer(ip, server)"
+                                                    class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium whitespace-nowrap">
+                                                    Block
+                                                </button>
+                                                <button v-if="['blocked', 'failed'].includes(server.status)" @click="confirmUnblockServer(ip, server)"
+                                                    class="text-xs text-green-600 dark:text-green-400 hover:underline font-medium whitespace-nowrap">
+                                                    Unblock
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <!-- Unattached servers -->
+                                        <div v-for="server in getUnattachedServers(ip)" :key="'new-' + server.id"
+                                            class="flex items-center justify-between bg-white dark:bg-gray-900 rounded-lg px-4 py-2.5 border border-gray-200 dark:border-gray-700 border-dashed">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ server.name }}</span>
+                                                <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                                    not added
+                                                </span>
+                                            </div>
+                                            <button @click="confirmBlockServer(ip, server)"
+                                                class="text-xs text-red-600 dark:text-red-400 hover:underline font-medium whitespace-nowrap">
+                                                Block
                                             </button>
                                         </div>
                                     </div>

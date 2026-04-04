@@ -59,4 +59,38 @@ class IpBlockService
     {
         $this->unblockFromServers($blockedIp);
     }
+
+    /**
+     * Re-block an existing blocked IP on specific servers.
+     * Used when an IP was unblocked or failed and needs to be blocked again.
+     */
+    public function reblockOnServers(BlockedIp $blockedIp, Collection $servers): void
+    {
+        foreach ($servers as $server) {
+            // Check if pivot record exists
+            $existing = $blockedIp->servers()->where('server_id', $server->id)->first();
+
+            if ($existing) {
+                // Update existing pivot to pending
+                $blockedIp->servers()->updateExistingPivot($server->id, [
+                    'status' => 'pending',
+                    'error_message' => null,
+                ]);
+            } else {
+                // Attach new server
+                $blockedIp->servers()->attach($server->id, [
+                    'id' => Str::ulid()->toBase32(),
+                    'status' => 'pending',
+                ]);
+            }
+
+            ExecuteSshBlockJob::dispatch($blockedIp, $server);
+        }
+
+        $this->audit->log('reblock_ip', $blockedIp, [
+            'ip_address' => $blockedIp->ip_address,
+            'server_ids' => $servers->pluck('id')->toArray(),
+            'server_names' => $servers->pluck('name')->toArray(),
+        ]);
+    }
 }

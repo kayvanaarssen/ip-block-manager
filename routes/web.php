@@ -52,6 +52,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('blocked-ips', BlockedIpController::class)->parameters(['blocked-ips' => 'blockedIp']);
     Route::post('/blocked-ips/{blockedIp}/unblock', [BlockedIpController::class, 'unblock'])->name('blocked-ips.unblock');
     Route::post('/blocked-ips/{blockedIp}/unblock-server/{server}', [BlockedIpController::class, 'unblockServer'])->name('blocked-ips.unblock-server');
+    Route::post('/blocked-ips/{blockedIp}/block', [BlockedIpController::class, 'block'])->name('blocked-ips.block');
+    Route::post('/blocked-ips/{blockedIp}/block-server/{server}', [BlockedIpController::class, 'blockServer'])->name('blocked-ips.block-server');
     Route::delete('/blocked-ips/{blockedIp}/force-delete', [BlockedIpController::class, 'forceDelete'])->name('blocked-ips.force-delete');
     Route::get('/blocked-ips/{blockedIp}/status', [BlockedIpController::class, 'status'])->name('blocked-ips.status');
 
