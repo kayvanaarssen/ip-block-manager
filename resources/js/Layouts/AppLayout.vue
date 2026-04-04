@@ -47,8 +47,8 @@ const logout = () => router.post(route('logout'))
         <!-- Sidebar: slides from right on mobile, fixed left on desktop -->
         <aside :class="[showSidebar ? 'translate-x-0' : 'translate-x-full lg:translate-x-0']"
             class="fixed inset-y-0 right-0 lg:right-auto lg:left-0 z-50 w-64 bg-white dark:bg-gray-900 border-l lg:border-l-0 lg:border-r border-gray-200 dark:border-gray-800 transition-transform duration-200 ease-in-out lg:z-0 flex flex-col">
-            <div class="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-800">
-                <Link :href="route('dashboard')" class="flex items-center gap-2.5 min-w-0">
+            <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-800">
+                <Link :href="route('dashboard')" class="flex items-center gap-2.5 min-w-0" @click="showSidebar = false">
                     <!-- Custom logo -->
                     <template v-if="appSettings?.logo_light || appSettings?.logo_dark">
                         <img v-if="appSettings.logo_light" :src="appSettings.logo_light" :alt="appName" class="w-8 h-8 object-contain dark:hidden" />
@@ -62,6 +62,9 @@ const logout = () => router.post(route('logout'))
                     </div>
                     <span class="font-bold text-gray-900 dark:text-white text-lg truncate">{{ appName }}</span>
                 </Link>
+                <button @click="showSidebar = false" class="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
 
             <nav class="p-4 space-y-1 flex-1">

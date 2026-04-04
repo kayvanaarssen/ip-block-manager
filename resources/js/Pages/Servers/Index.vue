@@ -127,7 +127,7 @@ const bulkDelete = () => {
         <!-- Bulk actions bar -->
         <Transition enter-active-class="duration-150 ease-out" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0"
             leave-active-class="duration-100 ease-in" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
-            <div v-if="selected.length" class="mb-4 flex flex-wrap items-center gap-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl px-4 py-3">
+            <div v-if="selected.length" class="mb-4 flex flex-wrap items-center gap-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl px-2 sm:px-4 py-2 sm:py-3">
                 <span class="text-sm font-medium text-primary-700 dark:text-primary-300">{{ selected.length }} selected</span>
                 <div class="h-4 w-px bg-primary-300 dark:bg-primary-700" />
                 <button @click="bulkTestConnection" :disabled="bulkLoading"
@@ -152,42 +152,42 @@ const bulkDelete = () => {
 
         <div v-if="servers.length" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-xs sm:text-sm">
                     <thead class="bg-gray-50 dark:bg-gray-800/50">
                         <tr>
-                            <th class="w-10 px-4 py-3">
+                            <th class="w-10 px-2 sm:px-2 sm:px-4 py-2 sm:py-3">
                                 <input type="checkbox" :checked="allSelected" :indeterminate="someSelected" @change="toggleAll"
                                     class="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500" />
                             </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Server</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">Connection</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Script</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Blocked</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Last Connected</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Server</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">Connection</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Script</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Blocked</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Last Connected</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                         <tr v-for="server in servers" :key="server.id"
                             class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                             :class="{ 'bg-primary-50/50 dark:bg-primary-900/10': selected.includes(server.id) }">
-                            <td class="px-4 py-3">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3">
                                 <input type="checkbox" :value="server.id" v-model="selected"
                                     class="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500" />
                             </td>
-                            <td class="px-4 py-3">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3">
                                 <Link :href="route('servers.edit', server.id)" class="group">
                                     <div class="font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ server.name }}</div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ server.ssh_user }}@{{ server.host }}:{{ server.port }}</div>
                                 </Link>
                             </td>
-                            <td class="px-4 py-3 hidden sm:table-cell">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3 hidden sm:table-cell">
                                 <span :class="[server.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500']"
                                     class="text-xs font-medium px-2 py-0.5 rounded-full">
                                     {{ server.is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3">
                                 <div class="flex items-center gap-1.5">
                                     <template v-if="server.script_installed">
                                         <span v-if="server.needs_update"
@@ -207,14 +207,14 @@ const bulkDelete = () => {
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-4 py-3 hidden md:table-cell">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
                                 <span v-if="server.blocked_ips_count" class="text-xs font-medium text-red-600 dark:text-red-400">{{ server.blocked_ips_count }}</span>
                                 <span v-else class="text-xs text-gray-400">0</span>
                             </td>
-                            <td class="px-4 py-3 hidden lg:table-cell">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3 hidden lg:table-cell">
                                 <span class="text-xs text-gray-400 dark:text-gray-500">{{ server.last_connected_at || 'Never' }}</span>
                             </td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-2 sm:px-4 py-2 sm:py-3 text-right">
                                 <!-- Desktop: inline buttons -->
                                 <div class="hidden md:flex items-center justify-end gap-2">
                                     <Link :href="route('servers.edit', server.id)" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium">Edit</Link>
