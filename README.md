@@ -4,16 +4,18 @@ A secure, mobile-first web dashboard for managing IP blocking across multiple se
 
 Block and unblock IP addresses on all your servers with a single click. The app connects to each server over SSH, deploys the `blockip.sh` script automatically, and executes block/unblock commands across UFW, Fail2Ban, and NGINX simultaneously.
 
+> **WARNING: Use at your own risk.** This software is provided "as is", without warranty of any kind, express or implied. The authors and contributors are **not responsible** for any changes made to, connections established with, or disruptions caused to your servers. You are solely responsible for managing access to your servers and the consequences of blocking or unblocking IP addresses. Always test in a staging environment before deploying to production. See [Disclaimer](#disclaimer) for full details.
+
 ---
 
 ## Features
 
 ### IP Blocking
-- **Block on all servers** with one click, or select specific servers
-- **Central unblock** - remove an IP from all servers at once, or selectively per server
-- **Real-time progress tracking** - watch block/unblock operations complete per server with live status polling
+- **Block and unblock from anywhere** — block/unblock on all servers at once, or per individual server
+- **Re-block and extend** — re-block failed IPs or add new servers to existing blocks
+- **Real-time progress tracking** — watch block/unblock operations complete per server with live status polling
 - **IPv4, IPv6, and CIDR range** support with server-side validation
-- **Reason tracking** - document why each IP was blocked
+- **Reason tracking** — document why each IP was blocked
 
 ### Server Management
 - Add servers with SSH connection details (host, port, user)
@@ -23,7 +25,9 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 - **SSH keys encrypted at rest** using Laravel's encryption (AES-256-CBC via APP_KEY)
 - **Test connection** to verify SSH access before blocking
 - **Auto-deploy** the `blockip.sh` script to servers that don't have it yet
-- Per-server status indicators (active, script installed, last connected, blocked IP count)
+- **Script versioning** — automatic detection of outdated scripts with one-click or bulk updates
+- **Bulk actions** — select multiple servers for bulk test connection, script update, or deletion
+- Per-server status indicators (active, script installed, script version, last connected, blocked IP count)
 
 ### Security
 - **Passkey (WebAuthn) authentication** via [spatie/laravel-passkeys](https://github.com/spatie/laravel-passkeys) - phishing-resistant, biometric login via fingerprint/Face ID
@@ -41,6 +45,8 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 
 ### UI/UX
 - **Mobile-first** responsive design with bottom navigation bar
+- **Mobile action sheets** — touch-friendly bottom sheets for actions on mobile, inline buttons on desktop
+- **Confirmation modals** — all destructive actions require in-app confirmation (no browser popups)
 - **Dark mode** with light/dark/auto toggle and database-persisted preference
 - Clean, modern interface with Tailwind CSS 4
 - Flash message toasts with auto-dismiss
@@ -53,7 +59,7 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 
 | Layer       | Technology                                                       |
 |-------------|------------------------------------------------------------------|
-| Backend     | Laravel 13 (PHP 8.3+)                                           |
+| Backend     | Laravel 13 (PHP 8.4+)                                           |
 | Frontend    | Vue 3 (Composition API, `<script setup>`)                        |
 | Bridge      | Inertia.js v3 (no API tokens, session-based)                     |
 | Styling     | Tailwind CSS 4                                                   |
@@ -121,12 +127,12 @@ resources/js/
     ├── Auth/Login.vue                       # Passkey + password login
     ├── Dashboard.vue                        # Stats cards + activity feed
     ├── Servers/
-    │   ├── Index.vue                        # Server grid
+    │   ├── Index.vue                        # Server table with bulk actions
     │   └── Form.vue                         # Create/edit with SSH key generation
     ├── BlockedIps/
-    │   ├── Index.vue                        # Blocked IP table
+    │   ├── Index.vue                        # Blocked IP table with block/unblock actions
     │   ├── Create.vue                       # Block IP form + server selector
-    │   └── Show.vue                         # Per-server status + unblock
+    │   └── Show.vue                         # Per-server status + block/unblock
     ├── Profile/
     │   └── Edit.vue                         # Profile, password, theme settings
     ├── Users/
@@ -155,7 +161,7 @@ resources/js/
 
 ### Requirements
 
-- PHP 8.3+
+- PHP 8.4+
 - Composer
 - Node.js 20+ & npm
 - SQLite
@@ -343,6 +349,31 @@ The script also:
 
 ---
 
+## Disclaimer
+
+**USE AT YOUR OWN RISK.**
+
+This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement.
+
+The authors and contributors are **not responsible** for:
+
+- Any changes made to your servers through this application
+- Any connections established to or from your servers
+- Any downtime, data loss, or security incidents resulting from the use of this software
+- Any IP addresses incorrectly blocked or unblocked
+- Any firewall (UFW), NGINX, or Fail2Ban configuration changes applied to your servers
+- Any disruption to services caused by blocking legitimate traffic
+
+By using this software, you acknowledge that:
+
+- You are solely responsible for your server infrastructure and its security
+- You should always test in a staging environment before deploying to production
+- You should maintain independent backups of your server configurations
+- You understand the implications of modifying firewall rules and web server configs remotely
+- SSH credentials stored in the application grant remote access to your servers — protect them accordingly
+
+The code is delivered as is. We are not responsible for the changes and/or connections from and to your servers.
+
 ## License
 
-Private repository. All rights reserved.
+[MIT](LICENSE)
