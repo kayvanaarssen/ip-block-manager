@@ -20,6 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        DB::statement('PRAGMA journal_mode=WAL;');
+        if (config('database.default') === 'sqlite') {
+            $dbPath = config('database.connections.sqlite.database');
+
+            if ($dbPath && file_exists($dbPath)) {
+                DB::statement('PRAGMA journal_mode=WAL;');
+            }
+        }
     }
 }

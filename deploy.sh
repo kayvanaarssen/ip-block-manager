@@ -13,6 +13,12 @@ echo "🔒 IP Block Manager - Deploying..."
 # Pull latest changes
 git pull origin main
 
+# Ensure SQLite database file exists before composer/artisan runs
+if [ ! -f database/database.sqlite ]; then
+    echo "📦 Creating SQLite database..."
+    touch database/database.sqlite
+fi
+
 # Install PHP dependencies (no dev on production)
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
