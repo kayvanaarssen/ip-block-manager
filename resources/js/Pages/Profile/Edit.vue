@@ -68,9 +68,9 @@ const updatePassword = () => {
     })
 }
 
-const updateTheme = () => {
+watch(() => themeForm.theme_preference, (value) => {
     themeForm.put(route('profile.theme'), { preserveScroll: true })
-}
+})
 
 const addPasskey = async () => {
     passkeyRegistering.value = true
@@ -255,7 +255,7 @@ const deletePasskey = (id) => {
             </div>
 
             <!-- Theme preference -->
-            <form @submit.prevent="updateTheme" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-5">
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-5">
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Theme Preference</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Choose your preferred color scheme. This will be remembered across sessions.</p>
                 <div class="grid grid-cols-3 gap-3">
@@ -270,11 +270,7 @@ const deletePasskey = (id) => {
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ opt.label }}</span>
                     </label>
                 </div>
-                <button type="submit" :disabled="themeForm.processing"
-                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 text-sm">
-                    {{ themeForm.processing ? 'Saving...' : 'Save Preference' }}
-                </button>
-            </form>
+            </div>
         </div>
 
         <ConfirmModal
