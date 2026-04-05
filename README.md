@@ -11,6 +11,22 @@ Block and unblock IP addresses on all your servers with a single click. The app 
 
 ---
 
+## Screenshots
+
+| Dashboard | Dark Mode |
+|-----------|-----------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Dashboard Dark](docs/screenshots/dashboard-dark.png) |
+
+| Servers | Blocked IPs |
+|---------|-------------|
+| ![Servers](docs/screenshots/servers.png) | ![Blocked IPs](docs/screenshots/blocked-ips.png) |
+
+| IP Detail — Location, Per-Server Status & Actions |
+|----------------------------------------------------|
+| ![Blocked IP Detail](docs/screenshots/blocked-ip-detail.png) |
+
+---
+
 ## Features
 
 ### IP Blocking
