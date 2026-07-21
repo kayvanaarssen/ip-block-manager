@@ -20,5 +20,8 @@
         "@vitejs/plugin-vue": "^6.0.5",
         "@vueuse/core": "^14.2.1",
         "vue": "^3.5.32"
+    },
+    "overrides": {
+        "shell-quote": "^1.10.0"
     }
 }
