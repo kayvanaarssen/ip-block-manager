@@ -182,7 +182,7 @@ resources/js/
 
 - PHP 8.4+
 - Composer
-- Node.js 20+ & npm
+- Node.js 20+ & pnpm
 - SQLite
 
 ### Local Development
@@ -194,7 +194,7 @@ cd ip-block-manager
 
 # Install dependencies
 composer install
-npm install
+pnpm install
 
 # Environment setup
 cp .env.example .env
@@ -208,7 +208,7 @@ php artisan migrate --seed
 
 # Start development servers (3 terminals)
 php artisan serve          # Backend on http://localhost:8000
-npm run dev                # Vite dev server with HMR
+pnpm dev                   # Vite dev server with HMR
 php artisan queue:work     # Process SSH jobs
 ```
 
@@ -268,8 +268,8 @@ touch database/database.sqlite
 
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
-npm ci --production=false
-npx vite build
+pnpm install --frozen-lockfile
+pnpm build
 rm -rf node_modules
 
 php artisan migrate --force

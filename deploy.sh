@@ -11,8 +11,8 @@ git reset --hard origin/main
 
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
-npm ci --production=false
-npx vite build
+pnpm install --frozen-lockfile
+pnpm build
 rm -rf node_modules
 
 php artisan migrate --force
