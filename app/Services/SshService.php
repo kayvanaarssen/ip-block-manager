@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Server;
-use phpseclib3\Net\SSH2;
-use phpseclib3\Crypt\PublicKeyLoader;
-use phpseclib3\Net\SFTP;
+use phpseclib4\Net\SSH2;
+use phpseclib4\Crypt\PublicKeyLoader;
+use phpseclib4\Net\SFTP;
 use RuntimeException;
 
 class SshService
@@ -116,11 +116,13 @@ class SshService
 
         // Upload script
         $scriptContent = file_get_contents($localScript);
-        if (!$sftp->put($scriptPath, $scriptContent)) {
-            throw new RuntimeException("Failed to upload blockip.sh to {$server->host}");
+        try {
+            $sftp->put($scriptPath, $scriptContent);
+        } catch (\Throwable $e) {
+            throw new RuntimeException("Failed to upload blockip.sh to {$server->host}", 0, $e);
         }
 
-        $sftp->chmod(0755, $scriptPath);
+        $sftp->chmod($scriptPath, 0755);
         $sftp->disconnect();
 
         // Verify and get version
@@ -191,7 +193,7 @@ class SshService
 
     public function generateKeyPair(Server $server): array
     {
-        $rsa = \phpseclib3\Crypt\RSA::createKey(4096);
+        $rsa = \phpseclib4\Crypt\RSA::createKey(4096);
 
         $privateKey = $rsa->toString('OpenSSH');
         $publicKey = $rsa->getPublicKey()->toString('OpenSSH', ['comment' => 'IPBlockManager-' . $server->name]);
@@ -209,7 +211,7 @@ class SshService
 
     public function generateKeyPairPreview(): array
     {
-        $rsa = \phpseclib3\Crypt\RSA::createKey(4096);
+        $rsa = \phpseclib4\Crypt\RSA::createKey(4096);
 
         $privateKey = $rsa->toString('OpenSSH');
         $publicKey = $rsa->getPublicKey()->toString('OpenSSH', ['comment' => 'IPBlockManager']);
